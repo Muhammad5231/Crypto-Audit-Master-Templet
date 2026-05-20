@@ -28,6 +28,7 @@ model User {
   trades          Trade[]
   reports         Report[]
   exchangeSettings ExchangeSettings[]
+  exchangeConfigs  ExchangeConfig[]
   exportHistory   ExportHistory[]
   notes           Note[]
   importTemplates ImportTemplate[]
@@ -52,6 +53,7 @@ model Workspace {
   trades           Trade[]
   reports          Report[]
   exchangeSettings ExchangeSettings[]
+  exchangeConfigs  ExchangeConfig[]
   exportHistory    ExportHistory[]
   notes            Note[]
 }
@@ -123,7 +125,7 @@ model Report {
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
-// ━━━━━━━━━━━ EXCHANGE SETTINGS ━━━━━━━━━━━
+// ━━━━━━━━━━━ EXCHANGE SETTINGS (Global Defaults) ━━━━━━━━━━━
 model ExchangeSettings {
   id                   String   @id @default(cuid())
   userId               String
@@ -139,6 +141,25 @@ model ExchangeSettings {
 
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+// ━━━━━━━━━━━ EXCHANGE CONFIG (Per-Exchange Fee Settings) ━━━━━━━━━━━
+model ExchangeConfig {
+  id             String   @id @default(cuid())
+  userId         String
+  workspaceId    String
+  exchangeName   String
+  buyFeePercent  String   @default("0.1")
+  sellFeePercent String   @default("0.1")
+  source         String   @default("manual")  // "manual" or "csv-upload"
+  lastUsedAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, exchangeName])
 }
 
 // ━━━━━━━━━━━ EXPORT HISTORY ━━━━━━━━━━━

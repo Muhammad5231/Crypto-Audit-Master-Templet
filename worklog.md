@@ -98,3 +98,28 @@ Stage Summary:
 - API stats now include exportCount and noteCount
 - Pre-existing TS errors in desktop-header and topbar (missing export-center) fixed
 - Build passes successfully
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Build premium Exchange Settings page for Crypto Audit Master
+
+Work Log:
+- Read existing exchange-settings-page.tsx (simple global fee form) and API route
+- Added new `ExchangeConfig` Prisma model with exchangeName, buyFeePercent, sellFeePercent, source (manual/csv-upload), lastUsedAt, unique constraint on [workspaceId, exchangeName]
+- Updated User and Workspace models in schema.prisma with exchangeConfigs relation
+- Ran prisma db push to migrate schema
+- Created API route `/api/workspaces/[workspaceId]/settings/exchange-configs/route.ts` with GET (list all) and POST (create new) handlers
+- Created API route `/api/workspaces/[workspaceId]/settings/exchange-configs/[configId]/route.ts` with PATCH (update) and DELETE handlers, including ownership verification
+- Completely rebuilt exchange-settings-page.tsx with two-section layout:
+  - Top section: Per-exchange configs table (desktop) / cards (mobile) with add/edit/delete
+  - Bottom section: Global Tax & TDS defaults (existing functionality preserved)
+- Features: summary cards, fee priority info banner, search, source badges (Manual vs CSV Upload), validation, confirmation dialogs
+- Zero TypeScript errors, build passes successfully
+
+Stage Summary:
+- New ExchangeConfig model and CRUD API routes created
+- Exchange Settings page rebuilt with premium UI per all 14 spec sections
+- Per-exchange fee configs with source tracking (manual vs csv-upload)
+- Global tax/TDS/GST defaults preserved as separate section
+- Mobile responsive with cards, desktop with professional table
