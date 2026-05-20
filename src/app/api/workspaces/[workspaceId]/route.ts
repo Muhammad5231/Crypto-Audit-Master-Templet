@@ -22,15 +22,17 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const workspace = await verifyWorkspaceOwnership(workspaceId, userId)
 
     // ── Fetch workspace stats ──
-    const [tradeCount, csvFileCount, reportCount] = await Promise.all([
+    const [tradeCount, csvFileCount, reportCount, exportCount, noteCount] = await Promise.all([
       db.trade.count({ where: { workspaceId } }),
       db.csvFile.count({ where: { workspaceId } }),
       db.report.count({ where: { workspaceId } }),
+      db.exportHistory.count({ where: { workspaceId } }),
+      db.note.count({ where: { workspaceId } }),
     ])
 
     return successResponse({
       ...workspace,
-      stats: { tradeCount, csvFileCount, reportCount },
+      stats: { tradeCount, csvFileCount, reportCount, exportCount, noteCount },
     })
   } catch (err) {
     if (err instanceof Error && (err.message.includes('Authorization') || err.message.includes('token'))) {

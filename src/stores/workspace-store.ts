@@ -19,6 +19,15 @@ export interface Workspace {
     trades: number
     csvFiles: number
     reports: number
+    exportHistory: number
+    notes: number
+  }
+  stats?: {
+    tradeCount: number
+    csvFileCount: number
+    reportCount: number
+    exportCount: number
+    noteCount: number
   }
 }
 

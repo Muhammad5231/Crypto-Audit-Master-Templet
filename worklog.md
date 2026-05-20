@@ -80,3 +80,21 @@ Stage Summary:
 - Edit dialog with same form, pre-filled
 - Delete dialog with confirmation typing required
 - Actions: Open, Edit, Settings, Duplicate, Archive/Unarchive, Delete
+---
+Task ID: 1
+Agent: Main Agent
+Task: Build premium Workspace Settings page for Crypto Audit Master
+
+Work Log:
+- Read existing codebase: workspace-store.ts, workspace-settings-page.tsx, sidebar.tsx, mobile-bottom-nav.tsx, page.tsx, API routes (workspace, archive, duplicate, last-opened)
+- Updated workspace GET API (`/api/workspaces/[workspaceId]/route.ts`) to include exportCount and noteCount in stats
+- Updated Workspace interface in workspace-store.ts to include `exportHistory` and `notes` in `_count`, plus `stats` with `exportCount` and `noteCount`
+- Completely rebuilt `/src/components/workspaces/workspace-settings-page.tsx` with full premium UI per spec
+- Fixed missing 'export-center' page title in desktop-header.tsx and topbar.tsx
+- Verified TypeScript compilation and Next.js build pass successfully
+
+Stage Summary:
+- Workspace Settings page rebuilt with: two-column desktop layout, workspace context badge, workspace details form with validation, financial year dropdown selector, workspace summary card with stats, quick actions card (duplicate, archive/restore), danger zone with type-to-confirm delete, archive confirmation dialog, duplicate confirmation dialog, no-workspace-selected state with navigation buttons, mobile responsive single-column layout
+- API stats now include exportCount and noteCount
+- Pre-existing TS errors in desktop-header and topbar (missing export-center) fixed
+- Build passes successfully

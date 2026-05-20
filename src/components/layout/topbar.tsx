@@ -33,6 +33,7 @@ const pageTitles: Record<AppPage, string> = {
   'tax-summary': 'Tax Summary',
   'exchange-settings': 'Exchange Settings',
   'notes': 'Notes',
+  'export-center': 'Export Center',
   'export-history': 'Export History',
   'documentation': 'Documentation',
   'settings': 'Settings',
