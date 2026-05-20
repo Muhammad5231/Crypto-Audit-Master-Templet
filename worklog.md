@@ -145,3 +145,26 @@ Stage Summary:
 - Key features: search by title/content, sort (recently updated, newest/oldest created, title A-Z), filter (all/pinned), pin/unpin notes, 3-column desktop grid, single-column mobile cards, dropdown menus, full-screen mobile editor, validation with inline errors, teal primary buttons, red delete, amber for pins
 - API routes updated for isPinned support
 - Prisma schema updated with isPinned field on Note model
+
+---
+Task ID: 2
+Agent: main
+Task: Build complete Export System with CSV, Excel, PDF exports + premium Export Center page
+
+Work Log:
+- Explored existing export infrastructure: found basic excel-export.ts (xlsx/SheetJS), pdf-export.ts (JSON-only), csv route (6 scopes), 4 excel routes, 1 pdf route
+- Installed exceljs, pdfkit, chartjs-node-canvas, chart.js libraries
+- Rebuilt /src/lib/excel-export.ts with exceljs: 15-sheet workbook with professional styling, conditional formatting, freeze panes, auto-filters, INR formatting, charts, totals rows, alternating row shading, teal headers
+- Rebuilt /src/lib/pdf-export.ts with pdfkit: server-side PDF generation with 13 sections, embedded charts (chartjs-node-canvas), professional typography, page numbers, A4 format, teal accent colors
+- Expanded CSV export API from 6 to 8 scopes: added skipped-rows and unmatched-sells
+- Enhanced upload-history CSV with additional columns (Exchange, Buy/Sell Fee%, File Size, Hash, Mapping Mode, Status)
+- Updated PDF API route to generate actual PDF files (backward compat with ?format=json)
+- Rebuilt Export Center page with premium fintech UI: 3 export type cards, CSV/Excel/PDF modals, custom export builder (4 steps), export history table with filters/search, empty states, mobile responsive
+- Build verified: compiled successfully, no errors
+
+Stage Summary:
+- Complete export system with 3 formats: CSV (8 scopes), Excel (15-sheet workbook), PDF (13-section report)
+- Excel uses exceljs with professional styling, conditional formatting, charts, freeze panes, auto-filters
+- PDF uses pdfkit with embedded chart images, professional layout, A4 format
+- Export Center page rebuilt with premium UI matching workspace-settings and exchange-settings patterns
+- All exports are workspace-scoped, use latest FIFO/tax report data

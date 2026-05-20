@@ -51,7 +51,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     // ── Generate the Excel workbook ──
-    const buffer = generateTaxSummaryExcel(taxSummary, wsForExport)
+    const buffer = await generateTaxSummaryExcel(taxSummary, wsForExport)
 
     // ── Generate filename ──
     const filename = getTaxSummaryFilename(wsForExport)

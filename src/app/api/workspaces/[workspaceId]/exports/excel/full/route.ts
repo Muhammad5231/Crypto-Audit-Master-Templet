@@ -109,7 +109,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     // ── Generate the Excel workbook ──
-    const buffer = generateFullExcelWorkbook(
+    const buffer = await generateFullExcelWorkbook(
       reportData,
       wsForExport,
       csvFilesForExport,

@@ -12,6 +12,8 @@
 //   - pair-summary
 //   - monthly-summary
 //   - upload-history
+//   - skipped-rows
+//   - unmatched-sells
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -21,7 +23,7 @@ import { verifyWorkspaceOwnership } from '@/lib/workspace-auth'
 import { errorResponse } from '@/lib/api-response'
 import { toD, formatINR } from '@/lib/decimal'
 import type { TaxedRealizedTrade, TaxSummary } from '@/lib/tax-engine'
-import type { OpenHolding } from '@/lib/fifo-engine'
+import type { OpenHolding, FifoWarning } from '@/lib/fifo-engine'
 
 type RouteContext = { params: Promise<{ workspaceId: string }> }
 
@@ -87,6 +89,24 @@ export async function POST(request: NextRequest, context: RouteContext) {
         })
         csvContent = generateUploadLogCsv(csvFiles)
         filename = `CryptoAudit_${workspace.name}_UploadLog_${getDateStamp()}.csv`
+        break
+      }
+
+      case 'skipped-rows': {
+        const csvFilesForSkip = await db.csvFile.findMany({
+          where: { workspaceId },
+          orderBy: { uploadedAt: 'desc' },
+        })
+        const warnings: FifoWarning[] = JSON.parse(report.warnings || '[]')
+        csvContent = generateSkippedRowsCsv(csvFilesForSkip, warnings)
+        filename = `CryptoAudit_${workspace.name}_SkippedRows_${getDateStamp()}.csv`
+        break
+      }
+
+      case 'unmatched-sells': {
+        const warningsUS: FifoWarning[] = JSON.parse(report.warnings || '[]')
+        csvContent = generateUnmatchedSellsCsv(warningsUS)
+        filename = `CryptoAudit_${workspace.name}_UnmatchedSells_${getDateStamp()}.csv`
         break
       }
 
@@ -331,16 +351,93 @@ function generateMonthlySummaryCsv(trades: TaxedRealizedTrade[]): string {
 
 // ── Generate Upload Log CSV ──────────────────────────────────
 
-function generateUploadLogCsv(csvFiles: Array<{ originalName: string; totalRows: number; validRows: number; skippedRows: number; uploadedAt: Date }>): string {
-  const header = csvRow('#', 'File Name', 'Total Rows', 'Valid Rows', 'Skipped Rows', 'Uploaded At')
+function generateUploadLogCsv(csvFiles: Array<{ originalName: string; exchangeName?: string; buyFeePercent?: string; sellFeePercent?: string; fileSize?: number; fileHash?: string; totalRows: number; validRows: number; skippedRows: number; skipReasons?: string; mappingMode?: string; uploadedAt: Date }>): string {
+  const header = csvRow('#', 'File Name', 'Exchange', 'Buy Fee %', 'Sell Fee %', 'Upload Date', 'File Size', 'File Hash', 'Total Rows', 'Imported Rows', 'Skipped Rows', 'Mapping Mode', 'Processing Status')
 
   const rows = csvFiles.map((f, i) => csvRow(
     i + 1,
     f.originalName,
+    f.exchangeName || '',
+    f.buyFeePercent || '0',
+    f.sellFeePercent || '0',
+    f.uploadedAt ? new Date(f.uploadedAt).toLocaleString('en-IN') : '',
+    f.fileSize || 0,
+    f.fileHash || '',
     f.totalRows,
     f.validRows,
     f.skippedRows,
-    f.uploadedAt ? new Date(f.uploadedAt).toLocaleString('en-IN') : ''
+    f.mappingMode === 'manual' ? 'Manual Mapping' : 'Auto-detected',
+    f.validRows > 0 ? 'Processed' : 'Pending'
+  ))
+
+  return [header, ...rows].join('\n')
+}
+
+// ── Generate Skipped Rows & Warnings CSV ─────────────────────
+
+function generateSkippedRowsCsv(csvFiles: Array<{ originalName: string; skipReasons?: string; totalRows: number; validRows: number; skippedRows: number; uploadedAt: Date }>, warnings: FifoWarning[]): string {
+  const header = csvRow('Source CSV', 'Row Number', 'Warning Type', 'Reason', 'Severity', 'Created At')
+
+  const rows: string[] = []
+
+  // Add skip reasons from CSV files
+  for (const f of csvFiles) {
+    if (f.skippedRows > 0 && f.skipReasons) {
+      try {
+        const reasons: Array<{ row?: number; reason?: string; type?: string; severity?: string }> = JSON.parse(f.skipReasons)
+        for (const r of reasons) {
+          rows.push(csvRow(
+            f.originalName,
+            r.row || '',
+            r.type || 'Skipped Row',
+            r.reason || 'Unknown reason',
+            r.severity || 'Warning',
+            f.uploadedAt ? new Date(f.uploadedAt).toLocaleString('en-IN') : ''
+          ))
+        }
+      } catch {
+        // If skipReasons is not valid JSON, add a single row
+        rows.push(csvRow(
+          f.originalName,
+          '',
+          'Skipped Rows',
+          `${f.skippedRows} rows skipped during import`,
+          'Warning',
+          f.uploadedAt ? new Date(f.uploadedAt).toLocaleString('en-IN') : ''
+        ))
+      }
+    }
+  }
+
+  // Add FIFO warnings
+  for (const w of warnings) {
+    rows.push(csvRow(
+      'FIFO Engine',
+      '',
+      w.type || 'Unmatched Sell',
+      w.reason || `Unmatched sell for ${w.pair}`,
+      'Warning',
+      w.sellDate ? fmtDate(w.sellDate) : ''
+    ))
+  }
+
+  return [header, ...rows].join('\n')
+}
+
+// ── Generate Unmatched Sells CSV ─────────────────────────────
+
+function generateUnmatchedSellsCsv(warnings: FifoWarning[]): string {
+  const header = csvRow('Pair', 'Exchange', 'Sell Trade Date', 'Sell Trade Qty', 'Matched Qty', 'Unmatched Qty', 'Reason', 'Source CSV')
+
+  const rows = warnings.map((w) => csvRow(
+    w.pair,
+    w.exchange || '',
+    fmtDate(w.sellDate),
+    toD(w.sellQty).toNumber(),
+    toD(w.availableQty).toNumber(),
+    toD(w.shortfallQty).toNumber(),
+    w.reason || `No matching buy lot found`,
+    w.csvFileId || ''
   ))
 
   return [header, ...rows].join('\n')

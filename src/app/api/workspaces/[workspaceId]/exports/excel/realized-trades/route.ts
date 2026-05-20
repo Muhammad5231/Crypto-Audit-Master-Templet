@@ -51,7 +51,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     // ── Generate the Excel workbook ──
-    const buffer = generateRealizedTradesExcel(realizedTrades, wsForExport)
+    const buffer = await generateRealizedTradesExcel(realizedTrades, wsForExport)
 
     // ── Generate filename ──
     const filename = getRealizedTradesFilename(wsForExport)
