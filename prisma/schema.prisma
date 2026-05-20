@@ -1,0 +1,190 @@
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CRYPTO AUDIT MASTER — Prisma Database Schema
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Financial values use String type to maintain precision with Decimal.js.
+// Complex/nested data uses Json/String for flexible storage.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ━━━━━━━━━━━ USER ━━━━━━━━━━━
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workspaces      Workspace[]
+  csvFiles        CsvFile[]
+  trades          Trade[]
+  reports         Report[]
+  exchangeSettings ExchangeSettings[]
+  exportHistory   ExportHistory[]
+  notes           Note[]
+  importTemplates ImportTemplate[]
+}
+
+// ━━━━━━━━━━━ WORKSPACE ━━━━━━━━━━━
+model Workspace {
+  id            String   @id @default(cuid())
+  userId        String
+  name          String
+  description   String   @default("")
+  color         String   @default("#14b8a6")
+  icon          String   @default("briefcase")
+  financialYear String   @default("2025-26")
+  isArchived    Boolean  @default(false)
+  lastOpenedAt  DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  csvFiles         CsvFile[]
+  trades           Trade[]
+  reports          Report[]
+  exchangeSettings ExchangeSettings[]
+  exportHistory    ExportHistory[]
+  notes            Note[]
+}
+
+// ━━━━━━━━━━━ CSV FILE ━━━━━━━━━━━
+model CsvFile {
+  id               String   @id @default(cuid())
+  userId           String
+  workspaceId      String
+  originalName     String
+  storedName       String
+  fileHash         String
+  fileSize         Int
+  mimeType         String   @default("text/csv")
+  totalRows        Int      @default(0)
+  validRows        Int      @default(0)
+  skippedRows      Int      @default(0)
+  skipReasons      String   @default("[]")
+  exchangeName     String   @default("")
+  buyFeePercent    String   @default("0")
+  sellFeePercent   String   @default("0")
+  mappingMode      String   @default("auto")  // "auto" or "manual"
+  uploadedAt       DateTime @default(now())
+  createdAt        DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  trades    Trade[]
+}
+
+// ━━━━━━━━━━━ TRADE ━━━━━━━━━━━
+model Trade {
+  id          String   @id @default(cuid())
+  userId      String
+  workspaceId String
+  csvFileId   String
+  tradeTime   DateTime
+  pair        String
+  asset       String   @default("")
+  side        String   // "BUY" or "SELL"
+  qty         String   // Decimal.js string
+  price       String   // Decimal.js string
+  orderValue  String   @default("0")
+  fee         String   @default("0")
+  tds         String   @default("0")
+  rawRow      String   @default("{}")
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  csvFile   CsvFile   @relation(fields: [csvFileId], references: [id], onDelete: Cascade)
+}
+
+// ━━━━━━━━━━━ REPORT ━━━━━━━━━━━
+model Report {
+  id             String   @id @default(cuid())
+  userId         String
+  workspaceId    String
+  generatedAt    DateTime @default(now())
+  sourceCsvFiles String   @default("[]")
+  summary        String   @default("{}")
+  realizedTrades String   @default("[]")
+  openHoldings   String   @default("[]")
+  warnings       String   @default("[]")
+  taxSummary     String   @default("{}")
+  createdAt      DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+// ━━━━━━━━━━━ EXCHANGE SETTINGS ━━━━━━━━━━━
+model ExchangeSettings {
+  id                   String   @id @default(cuid())
+  userId               String
+  workspaceId          String
+  defaultBuyFeePercent String   @default("0.1")
+  defaultSellFeePercent String  @default("0.1")
+  defaultTdsPercent    String   @default("1.0")
+  gstPercent           String   @default("18.0")
+  cryptoTaxPercent     String   @default("30.0")
+  cessPercent          String   @default("4.0")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+// ━━━━━━━━━━━ EXPORT HISTORY ━━━━━━━━━━━
+model ExportHistory {
+  id          String   @id @default(cuid())
+  userId      String
+  workspaceId String
+  exportType  String
+  filename    String
+  filePath    String   @default("")
+  exportScope String   @default("full")
+  status      String   @default("generated")
+  generatedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+// ━━━━━━━━━━━ NOTE ━━━━━━━━━━━
+model Note {
+  id          String   @id @default(cuid())
+  userId      String
+  workspaceId String
+  title       String
+  content     String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+// ━━━━━━━━━━━ IMPORT TEMPLATE ━━━━━━━━━━━
+model ImportTemplate {
+  id              String    @id @default(cuid())
+  userId          String
+  templateName    String
+  originalColumns String    @default("[]")
+  mappingConfig   String    @default("{}")
+  sideValueMap    String    @default("{}")
+  dateFormat      String    @default("")
+  exchangeName    String    @default("")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  lastUsedAt      DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
