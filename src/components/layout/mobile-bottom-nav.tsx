@@ -17,6 +17,7 @@ import {
   BookOpen,
   Settings,
   FolderOpen,
+  Package,
 } from 'lucide-react'
 import {
   Sheet,
@@ -41,6 +42,7 @@ const moreItems: { id: AppPage; label: string; icon: React.ElementType; section?
   { id: 'workspaces', label: 'Workspaces', icon: FolderOpen, section: 'WORKSPACE' },
   { id: 'exchange-settings', label: 'Exchange Settings', icon: SlidersHorizontal, section: 'TOOLS' },
   { id: 'notes', label: 'Notes', icon: FileText, section: 'TOOLS' },
+  { id: 'export-center', label: 'Export Center', icon: Package, section: 'TOOLS' },
   { id: 'export-history', label: 'Export History', icon: Download, section: 'TOOLS' },
   { id: 'documentation', label: 'Documentation', icon: BookOpen, section: 'TOOLS' },
   { id: 'settings', label: 'Settings', icon: Settings, section: '' },

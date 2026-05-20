@@ -23,6 +23,7 @@ import NotesPage from '@/components/notes/notes-page'
 import DocumentationPage from '@/components/docs/documentation-page'
 import UserSettingsPage from '@/components/settings/user-settings-page'
 import ExportHistoryPage from '@/components/exports/export-history-page'
+import ExportCenterPage from '@/components/exports/export-center-page'
 
 // Placeholder for pages not yet implemented
 function PlaceholderPage({ page }: { page: AppPage }) {
@@ -34,6 +35,7 @@ function PlaceholderPage({ page }: { page: AppPage }) {
     'tax-summary': 'Tax Summary',
     'exchange-settings': 'Exchange Settings',
     'notes': 'Notes',
+    'export-center': 'Export Center',
     'export-history': 'Export History',
     'documentation': 'Documentation',
     'settings': 'Settings',
@@ -125,6 +127,8 @@ export default function Home() {
         return <DocumentationPage />
       case 'settings':
         return <UserSettingsPage />
+      case 'export-center':
+        return <ExportCenterPage />
       case 'export-history':
         return <ExportHistoryPage />
       default:

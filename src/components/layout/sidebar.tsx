@@ -29,6 +29,7 @@ import {
   Archive,
   ChevronsLeft,
   ChevronsRight,
+  Package,
 } from 'lucide-react'
 
 interface NavItem {
@@ -48,6 +49,7 @@ const navItems: NavItem[] = [
   { id: 'workspace-settings', label: 'Workspace Settings', icon: Settings, section: 'WORKSPACE' },
   { id: 'exchange-settings', label: 'Exchange Settings', icon: SlidersHorizontal, section: 'TOOLS' },
   { id: 'notes', label: 'Notes', icon: FileText, section: 'TOOLS' },
+  { id: 'export-center', label: 'Export Center', icon: Package, section: 'TOOLS' },
   { id: 'export-history', label: 'Export History', icon: Download, section: 'TOOLS' },
   { id: 'documentation', label: 'Documentation', icon: BookOpen, section: 'TOOLS' },
 ]

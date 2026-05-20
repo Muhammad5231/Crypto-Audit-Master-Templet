@@ -23,3 +23,29 @@ Stage Summary:
 - SQLite database with 9 Prisma models
 - 49 shadcn/ui components, 4 Zustand stores, 13 page components
 - Authentication (JWT), workspace management, CSV upload, FIFO engine, tax engine all functional
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Build Export Center page and integrate into Crypto Audit Master
+
+Work Log:
+- Created ExportCenterPage component at src/components/exports/export-center-page.tsx (700+ lines)
+- Added 'export-center' to AppPage type in app-store.ts
+- Added Export Center nav item in sidebar.tsx (TOOLS section, above Export History)
+- Added Export Center to mobile bottom nav more items
+- Added Export Center route in page.tsx with page name mapping
+- Created CSV export API route at src/app/api/workspaces/[workspaceId]/exports/csv/route.ts
+- Added DELETE handler to export record API for delete functionality
+- Export Center includes: page header, 4 export type cards, CSV sub-type selector, custom export builder dialog, export history table (desktop) and cards (mobile), generation progress states, empty states, format badges, status badges, regeneration and deletion
+- Lint passes clean, dev server compiles without errors
+
+Stage Summary:
+- Export Center page fully functional with all requested features
+- Quick Export cards: Full Excel Workbook, Professional PDF, Raw CSV, Custom Export
+- CSV sub-types: Realized Trades, Open Holdings, Tax Summary, Pair-wise Summary, Monthly Performance, Upload Log
+- Custom Export Builder dialog with format selection, scope, record scope, include sections checkboxes, filename preview
+- Export History section with desktop table and mobile cards
+- Generation states with progress indicators and toast notifications
+- Backend API: CSV export endpoint with 6 scope options, DELETE endpoint for export records
+- Navigation: Added to sidebar (TOOLS) and mobile bottom nav

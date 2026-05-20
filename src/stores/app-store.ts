@@ -10,6 +10,7 @@ export type AppPage =
   | 'tax-summary'
   | 'exchange-settings'
   | 'notes'
+  | 'export-center'
   | 'export-history'
   | 'documentation'
   | 'settings'

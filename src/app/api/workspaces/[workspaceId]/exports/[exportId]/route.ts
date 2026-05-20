@@ -7,6 +7,9 @@
 //   this endpoint returns the metadata. For re-downloading, the
 //   user should regenerate the export via the appropriate POST
 //   endpoint (excel/full, realized-trades, etc.).
+//
+// DELETE /api/workspaces/:workspaceId/exports/:exportId
+//   Deletes an export history record.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { NextRequest } from 'next/server'
@@ -59,5 +62,44 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
     console.error('[EXPORT DETAILS ERROR]', err)
     return errorResponse('Failed to fetch export details', 500)
+  }
+}
+
+// ── DELETE: Remove export history record ───────────────────
+
+export async function DELETE(request: NextRequest, context: RouteContext) {
+  try {
+    const { userId } = authenticateRequest(request)
+    const { workspaceId, exportId } = await context.params
+    await verifyWorkspaceOwnership(workspaceId, userId)
+
+    // ── Verify the export record exists and belongs to user ──
+    const exportRecord = await db.exportHistory.findFirst({
+      where: {
+        id: exportId,
+        workspaceId,
+        userId,
+      },
+    })
+
+    if (!exportRecord) {
+      return errorResponse('Export record not found', 404)
+    }
+
+    // ── Delete the export record ──
+    await db.exportHistory.delete({
+      where: { id: exportId },
+    })
+
+    return successResponse(null, 'Export record deleted successfully')
+  } catch (err) {
+    if (err instanceof Error && (err.message.includes('Authorization') || err.message.includes('token'))) {
+      return errorResponse(err.message, 401)
+    }
+    if (err instanceof Error && (err.message.includes('Workspace not found') || err.message.includes('access'))) {
+      return errorResponse(err.message, 403)
+    }
+    console.error('[EXPORT DELETE ERROR]', err)
+    return errorResponse('Failed to delete export record', 500)
   }
 }
