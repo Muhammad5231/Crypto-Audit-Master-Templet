@@ -30,7 +30,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
 
     const body = await request.json()
-    const { title, content } = body
+    const { title, content, isPinned } = body
 
     // ── Validate title if provided ──
     if (title !== undefined && (typeof title !== 'string' || title.trim() === '')) {
@@ -38,9 +38,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
 
     // ── Build update data ──
-    const updateData: Record<string, string> = {}
+    const updateData: Record<string, string | boolean> = {}
     if (title !== undefined) updateData.title = String(title).trim()
     if (content !== undefined) updateData.content = String(content)
+    if (isPinned !== undefined) updateData.isPinned = Boolean(isPinned)
 
     if (Object.keys(updateData).length === 0) {
       return errorResponse('No fields provided to update', 422)

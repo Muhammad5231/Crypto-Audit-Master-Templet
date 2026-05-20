@@ -186,6 +186,7 @@ model Note {
   workspaceId String
   title       String
   content     String   @default("")
+  isPinned    Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

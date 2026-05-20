@@ -21,7 +21,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     await verifyWorkspaceOwnership(workspaceId, userId)
 
     const body = await request.json()
-    const { title, content } = body
+    const { title, content, isPinned } = body
 
     // ── Validate required fields ──
     if (!title || typeof title !== 'string' || title.trim() === '') {
@@ -34,6 +34,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         workspaceId,
         title: title.trim(),
         content: content ? String(content) : '',
+        isPinned: typeof isPinned === 'boolean' ? isPinned : false,
       },
     })
 
@@ -59,7 +60,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     const notes = await db.note.findMany({
       where: { workspaceId, userId },
-      orderBy: { updatedAt: 'desc' },
+      orderBy: [
+        { isPinned: 'desc' },
+        { updatedAt: 'desc' },
+      ],
     })
 
     return successResponse(notes)
