@@ -49,3 +49,34 @@ Stage Summary:
 - Generation states with progress indicators and toast notifications
 - Backend API: CSV export endpoint with 6 scope options, DELETE endpoint for export records
 - Navigation: Added to sidebar (TOOLS) and mobile bottom nav
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Rebuild Workspaces page with premium UI per detailed spec
+
+Work Log:
+- Completely rewrote src/components/workspaces/workspaces-page.tsx (600+ lines)
+- Added summary overview cards (Total, Active, Archived, Recently Opened)
+- Added search by name, description, or financial year
+- Added filter chips: All, Active, Archived with count badges
+- Added sort dropdown: Recently Opened, Newest Created, Oldest Created, Name A-Z
+- Built premium workspace cards with color/icon badge, description, stats, status badges, and Open Workspace button
+- Added Edit/Rename workspace dialog with pre-filled form data
+- Added Delete workspace confirmation dialog with safety typing (must type workspace name)
+- Added 3-dot action menu on each card: Rename/Edit, Settings, Duplicate, Archive/Unarchive, Delete
+- Created shared WorkspaceForm component for both Create and Edit dialogs
+- Empty states for: no workspaces, no archived, no search results
+- Current workspace badge and "Currently Active" button state
+- Mobile-responsive layout with single column cards
+- Lint passes clean, dev server compiles without errors
+
+Stage Summary:
+- Workspaces page fully rebuilt with all 15 spec sections implemented
+- Summary overview cards: Total, Active, Archived, Recently Opened
+- Search + filter (All/Active/Archived) + sort (4 options)
+- Workspace cards with: name, description, FY badge, status badge, current badge, trades/CSVs/last opened stats, Open button
+- Create dialog with name, description, FY, color picker, icon selector
+- Edit dialog with same form, pre-filled
+- Delete dialog with confirmation typing required
+- Actions: Open, Edit, Settings, Duplicate, Archive/Unarchive, Delete
