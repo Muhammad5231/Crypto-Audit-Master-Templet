@@ -80,6 +80,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
+import { getCurrentFinancialYear } from '@/lib/tax-defaults'
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -532,7 +533,7 @@ export default function ExportCenterPage() {
   const getFilenamePreview = () => {
     if (!currentWorkspace) return ''
     const wsName = currentWorkspace.name.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 30)
-    const fy = currentWorkspace.financialYear || 'FY2025-26'
+    const fy = currentWorkspace.financialYear || getCurrentFinancialYear()
     const ext = customConfig.format === 'excel' ? 'xlsx' : customConfig.format === 'pdf' ? 'pdf' : 'csv'
     const scopeLabel = scopeLabels[customConfig.scope].replace(/\s+/g, '_')
     return `Crypto_Audit_Master_${wsName}_${fy}_${scopeLabel}.${ext}`

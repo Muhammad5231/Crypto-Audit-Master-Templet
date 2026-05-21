@@ -60,8 +60,8 @@ export function MobileBottomNav() {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 md:hidden border-t border-border bg-card/95 backdrop-blur-md safe-area-bottom">
-      <div className="flex items-center justify-around h-16 px-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-30 md:hidden border-t border-border bg-card/95 backdrop-blur-md">
+      <div className="flex items-center justify-around h-16 px-2 safe-area-bottom">
         {mainTabs.map((tab) => {
           const Icon = tab.icon
           const isActive = currentPage === tab.id
@@ -71,14 +71,22 @@ export function MobileBottomNav() {
               onClick={() => setCurrentPage(tab.id)}
               aria-current={isActive ? 'page' : undefined}
               className={cn(
-                'flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors rounded-lg',
+                'nav-tap relative flex flex-col items-center justify-center gap-0.5 flex-1 h-full rounded-lg select-none',
                 isActive ? 'text-teal-500' : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              <Icon className="h-5 w-5" />
-              <span className="text-[10px] font-medium">{tab.label}</span>
+              <div className={cn(
+                'flex items-center justify-center rounded-xl transition-all duration-200',
+                isActive ? 'bg-teal-500/10 h-7 w-7' : 'h-7 w-7'
+              )}>
+                <Icon className={cn('transition-transform duration-200', isActive && 'scale-110')} style={{ width: 20, height: 20 }} />
+              </div>
+              <span className={cn(
+                'text-[10px] leading-tight transition-all duration-200',
+                isActive ? 'font-bold' : 'font-medium'
+              )}>{tab.label}</span>
               {isActive && (
-                <span className="absolute bottom-1 h-0.5 w-4 rounded-full bg-teal-500" />
+                <span className="absolute top-0 left-1/2 -translate-x-1/2 h-[3px] w-8 rounded-full bg-teal-500 shadow-[0_0_6px_rgba(20,184,166,0.5)]" />
               )}
             </button>
           )
@@ -90,12 +98,23 @@ export function MobileBottomNav() {
             <button
               aria-current={isMoreActive ? 'page' : undefined}
               className={cn(
-                'flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors rounded-lg',
+                'nav-tap relative flex flex-col items-center justify-center gap-0.5 flex-1 h-full rounded-lg select-none',
                 isMoreActive ? 'text-teal-500' : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              <MoreHorizontal className="h-5 w-5" />
-              <span className="text-[10px] font-medium">More</span>
+              <div className={cn(
+                'flex items-center justify-center rounded-xl transition-all duration-200',
+                isMoreActive ? 'bg-teal-500/10 h-7 w-7' : 'h-7 w-7'
+              )}>
+                <MoreHorizontal className={cn('transition-transform duration-200', isMoreActive && 'scale-110')} style={{ width: 20, height: 20 }} />
+              </div>
+              <span className={cn(
+                'text-[10px] leading-tight transition-all duration-200',
+                isMoreActive ? 'font-bold' : 'font-medium'
+              )}>More</span>
+              {isMoreActive && (
+                <span className="absolute top-0 left-1/2 -translate-x-1/2 h-[3px] w-8 rounded-full bg-teal-500 shadow-[0_0_6px_rgba(20,184,166,0.5)]" />
+              )}
             </button>
           </SheetTrigger>
           <SheetContent side="bottom" className="rounded-t-2xl max-h-[70vh]">

@@ -182,8 +182,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         )}
         style={!isMobile ? { marginLeft: sidebarWidth } : undefined}
       >
-        <DesktopHeader />
-        <main className={cn('flex-1 p-4 md:p-6', isMobile && 'pb-20')}>
+        <div className={cn(isMobile && 'safe-area-top')}>
+          <DesktopHeader />
+        </div>
+        <main className={cn('flex-1 p-4 md:p-6', isMobile && 'pb-24')}>
           {children}
         </main>
       </div>

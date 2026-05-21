@@ -12,6 +12,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useWorkspaceStore } from '@/stores/workspace-store'
 import { useAppStore } from '@/stores/app-store'
 import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api-client'
+import { TAX_DEFAULTS } from '@/lib/tax-defaults'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -118,10 +119,10 @@ export default function ExchangeSettingsPage() {
   const [hasGlobalChanges, setHasGlobalChanges] = useState(false)
 
   // Global form state
-  const [tdsPercent, setTdsPercent] = useState('1')
-  const [cryptoTaxPercent, setCryptoTaxPercent] = useState('30')
-  const [cessPercent, setCessPercent] = useState('4')
-  const [gstPercent, setGstPercent] = useState('18')
+  const [tdsPercent, setTdsPercent] = useState(TAX_DEFAULTS.TDS_PERCENT)
+  const [cryptoTaxPercent, setCryptoTaxPercent] = useState(TAX_DEFAULTS.CRYPTO_TAX_PERCENT)
+  const [cessPercent, setCessPercent] = useState(TAX_DEFAULTS.CESS_PERCENT)
+  const [gstPercent, setGstPercent] = useState(TAX_DEFAULTS.GST_PERCENT)
 
   // ── Add/Edit dialog state ──
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -336,10 +337,10 @@ export default function ExchangeSettingsPage() {
   }
 
   const handleResetDefaults = () => {
-    setTdsPercent('1')
-    setCryptoTaxPercent('30')
-    setCessPercent('4')
-    setGstPercent('18')
+    setTdsPercent(TAX_DEFAULTS.TDS_PERCENT)
+    setCryptoTaxPercent(TAX_DEFAULTS.CRYPTO_TAX_PERCENT)
+    setCessPercent(TAX_DEFAULTS.CESS_PERCENT)
+    setGstPercent(TAX_DEFAULTS.GST_PERCENT)
     setHasGlobalChanges(true)
   }
 

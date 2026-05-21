@@ -540,6 +540,64 @@ function UploadCsvButton() {
   )
 }
 
+// ─── Mobile Workspace Chip (compact selector) ─────────────────────
+function MobileWorkspaceChip() {
+  const { currentPage } = useAppStore()
+  const { workspaces, currentWorkspace, selectWorkspace } = useWorkspaceStore()
+  const safeWorkspaces = workspaces ?? []
+  const activeWorkspaces = safeWorkspaces.filter((w) => !w.isArchived)
+  const pageTitle = pageTitles[currentPage] || 'Dashboard'
+
+  if (activeWorkspaces.length <= 1 && !currentWorkspace) {
+    return <h2 className="text-sm font-semibold truncate">{pageTitle}</h2>
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="flex items-center gap-1.5 rounded-md bg-muted/50 hover:bg-muted/70 px-2 py-1 text-sm transition-colors max-w-[180px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50">
+          {currentWorkspace?.color && (
+            <div
+              className="h-2 w-2 rounded-full shrink-0"
+              style={{ backgroundColor: currentWorkspace.color }}
+            />
+          )}
+          <span className="truncate font-medium text-foreground text-xs">
+            {currentWorkspace?.name || pageTitle}
+          </span>
+          <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-[240px] p-2">
+        <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground px-2">
+          Workspaces
+        </DropdownMenuLabel>
+        {activeWorkspaces.map((ws) => (
+          <DropdownMenuItem
+            key={ws.id}
+            onClick={() => selectWorkspace(ws.id)}
+            className={cn(
+              'flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer',
+              currentWorkspace?.id === ws.id && 'bg-teal-500/10 text-teal-600 dark:text-teal-400'
+            )}
+          >
+            {ws.color && (
+              <div
+                className="h-2.5 w-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: ws.color }}
+              />
+            )}
+            <span className="truncate flex-1 text-sm">{ws.name}</span>
+            {currentWorkspace?.id === ws.id && (
+              <Check className="h-3.5 w-3.5 text-teal-500 shrink-0" />
+            )}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 // ─── Main Desktop Header ──────────────────────────────────────────
 export function DesktopHeader() {
   const { currentPage, toggleSidebar } = useAppStore()
@@ -547,8 +605,8 @@ export function DesktopHeader() {
 
   return (
     <header className="sticky top-0 z-20 border-b border-border/60 bg-card/70 backdrop-blur-xl supports-[backdrop-filter]:bg-card/60">
-      <div className="flex items-center h-14 px-3 md:px-4 gap-2 md:gap-3">
-        {/* Mobile: Menu Button + Page Title */}
+      <div className="flex items-center h-12 md:h-14 px-2 md:px-4 gap-2 md:gap-3">
+        {/* Mobile: Menu Button + Workspace Chip + Page Title */}
         <Button
           variant="ghost"
           size="icon"
@@ -558,8 +616,9 @@ export function DesktopHeader() {
           <Menu className="h-4 w-4" />
         </Button>
 
-        <div className="md:hidden flex items-center gap-2 shrink-0">
-          <h2 className="text-sm font-semibold">{pageTitle}</h2>
+        {/* Mobile: Compact workspace selector chip */}
+        <div className="md:hidden flex items-center gap-2 min-w-0 flex-1">
+          <MobileWorkspaceChip />
         </div>
 
         {/* Desktop: [ Workspace Selector ] | [ Page Title ] */}
@@ -569,7 +628,7 @@ export function DesktopHeader() {
         </div>
 
         {/* Right: [ Upload CSV ] | [ Search ] | [ Notification ] | [ Theme ] | [ Profile ] */}
-        <div className="flex items-center gap-1 ml-auto shrink-0">
+        <div className="flex items-center gap-0.5 md:gap-1 ml-auto shrink-0">
           {/* Upload CSV Button */}
           <UploadCsvButton />
 

@@ -70,12 +70,15 @@ export interface TaxSummary {
   totalSellValue: string
   totalGrossProfit: string
   totalGrossLoss: string
+  taxablePositiveGain: string  // Total positive gross profits (taxable base)
 
   totalFees: string
   totalGstOnFees: string
   totalTds: string
-  totalDirectTax: string
-  totalCess: string
+  totalBaseCryptoTax: string   // 30% of taxable positive gain
+  totalSurcharge: string       // Surcharge on high-income taxpayers
+  totalCess: string            // 4% on (base tax + surcharge)
+  totalDirectTax: string       // base + surcharge + cess
 
   totalNetProfit: string
   totalNetProfitFromProfitableTrades: string
@@ -84,6 +87,7 @@ export interface TaxSummary {
   effectiveTaxRate: string
   avgProfitPerTrade: string
   avgLossPerTrade: string
+  surchargeApplicable: boolean  // Whether surcharge threshold was crossed
 }
 
 /** Complete tax engine result */
@@ -206,12 +210,15 @@ export function runTaxEngine(
     const sellTdsSource: 'CSV' | 'DEFAULT' = totalTdsFromFifo.gt(0) ? 'CSV' : sellTdsResult.source
 
     // ── Direct Tax (only when grossProfit > 0) ──
+    // NOTE: Surcharge is calculated at the AGGREGATE level in the summary,
+    // not per-trade. Per-trade we compute base tax + cess only.
     let resolvedBaseCryptoTax: Decimal
     let resolvedCess: Decimal
     let resolvedTotalDirectTax: Decimal
 
     if (grossProfit.gt(0)) {
       resolvedBaseCryptoTax = grossProfit.times(cryptoTaxPercent)
+      // Cess per-trade is 4% of base tax (surcharge applied later in summary)
       resolvedCess = resolvedBaseCryptoTax.times(cessPercent)
       resolvedTotalDirectTax = resolvedBaseCryptoTax.plus(resolvedCess)
     } else {
@@ -259,6 +266,78 @@ export function runTaxEngine(
   return { taxedTrades, summary }
 }
 
+// ── Indian Surcharge Slabs (FY 2024-25 onwards) ──────────
+// Surcharge is levied on the total income tax when total income exceeds
+// certain thresholds. For VDA income under Section 115AD(1)(b)(ii):
+//
+//   Total Income           Surcharge Rate
+//   Up to ₹50 lakh         0%
+//   ₹50L – ₹1 Cr          10%
+//   ₹1 Cr – ₹2 Cr         15%
+//   ₹2 Cr – ₹5 Cr         25%
+//   Above ₹5 Cr           37%  (capped at max surcharge + cess = 25% of income)
+//
+// For crypto (VDA) under Section 115AD, the marginal relief applies
+// to ensure total tax + surcharge doesn't exceed the tax on the
+// threshold + the income exceeding the threshold.
+
+const SURCHARGE_SLABS: Array<{ threshold: string; rate: string }> = [
+  { threshold: '5000000',  rate: '0'    },  // Up to ₹50 lakh: 0%
+  { threshold: '10000000', rate: '0.10' },  // ₹50L–₹1Cr: 10%
+  { threshold: '20000000', rate: '0.15' },  // ₹1Cr–₹2Cr: 15%
+  { threshold: '50000000', rate: '0.25' },  // ₹2Cr–₹5Cr: 25%
+  { threshold: 'Infinity',  rate: '0.37' },  // Above ₹5Cr: 37%
+]
+
+function calculateSurcharge(taxableIncome: Decimal, baseTax: Decimal): { surcharge: Decimal; surchargeRate: Decimal } {
+  // Find the applicable surcharge rate based on total taxable income
+  let applicableRate = new Decimal(0)
+  for (const slab of SURCHARGE_SLABS) {
+    const threshold = toD(slab.threshold)
+    if (taxableIncome.gt(threshold)) continue
+    applicableRate = toD(slab.rate)
+    break
+  }
+  // If income exceeds all defined thresholds, use the highest rate
+  if (taxableIncome.gt(toD('50000000'))) {
+    applicableRate = toD('0.37')
+  }
+
+  if (applicableRate.isZero()) {
+    return { surcharge: new Decimal(0), surchargeRate: applicableRate }
+  }
+
+  let surcharge = baseTax.times(applicableRate)
+
+  // ── Marginal Relief ──
+  // Ensure that total tax (base + surcharge) does not exceed:
+  //   tax at previous slab threshold + (income - threshold) * max rate
+  // This prevents a situation where earning slightly more results in less after-tax income.
+  const incomeTaxOnPreviousSlab = baseTax  // Without surcharge
+
+  // Find the threshold just below current income
+  let previousThreshold = new Decimal(0)
+  for (const slab of SURCHARGE_SLABS) {
+    const threshold = toD(slab.threshold)
+    if (taxableIncome.lte(threshold)) break
+    previousThreshold = threshold
+  }
+
+  // Max payable = tax on previous threshold + (income - previous threshold) * 30%
+  const maxPayable = incomeTaxOnPreviousSlab.plus(
+    taxableIncome.minus(previousThreshold).times(toD('0.30'))
+  )
+  const totalWithSurcharge = baseTax.plus(surcharge)
+
+  // If total with surcharge exceeds max payable, limit it
+  if (totalWithSurcharge.gt(maxPayable)) {
+    surcharge = maxPayable.minus(baseTax)
+    if (surcharge.lt(0)) surcharge = new Decimal(0)
+  }
+
+  return { surcharge, surchargeRate: applicableRate }
+}
+
 // ── Build Tax Summary ──────────────────────────────────────
 
 function buildTaxSummary(trades: TaxedRealizedTrade[]): TaxSummary {
@@ -267,14 +346,33 @@ function buildTaxSummary(trades: TaxedRealizedTrade[]): TaxSummary {
 
   const totalBuyValue = sumD(trades.map(t => t.buyValue))
   const totalSellValue = sumD(trades.map(t => t.sellValue))
+
+  // Taxable positive gain = sum of all positive gross profits
+  const taxablePositiveGain = sumD(
+    trades.map(t => t.grossProfit).filter(v => toD(v).gt(0))
+  )
   const totalGrossProfit = sumD(trades.map(t => t.grossProfit).filter(v => toD(v).gt(0)))
   const totalGrossLoss = sumD(trades.map(t => t.grossProfit).filter(v => toD(v).lt(0)))
 
   const totalFees = sumD(trades.map(t => t.resolvedTotalFees))
   const totalGstOnFees = sumD(trades.map(t => t.resolvedGstOnFees))
   const totalTds = sumD(trades.map(t => t.resolvedTotalTds))
-  const totalDirectTax = sumD(trades.map(t => t.resolvedTotalDirectTax))
-  const totalCess = sumD(trades.map(t => t.resolvedCess))
+
+  // ── Aggregate Tax Calculation with Surcharge ──
+  // Base tax: 30% of taxable positive gain
+  const totalBaseCryptoTax = taxablePositiveGain.times(toD('0.30'))
+
+  // Surcharge on base tax based on total taxable income
+  const { surcharge: totalSurcharge } = calculateSurcharge(taxablePositiveGain, totalBaseCryptoTax)
+
+  // Cess: 4% on (base tax + surcharge)
+  const totalCess = totalBaseCryptoTax.plus(totalSurcharge).times(toD('0.04'))
+
+  // Total direct tax = base + surcharge + cess
+  const totalDirectTax = totalBaseCryptoTax.plus(totalSurcharge).plus(totalCess)
+
+  const surchargeApplicable = totalSurcharge.gt(0)
+
   const totalNetProfit = sumD(trades.map(t => t.resolvedFinalNetProfit))
 
   const totalNetProfitFromProfitableTrades = sumD(
@@ -285,8 +383,8 @@ function buildTaxSummary(trades: TaxedRealizedTrade[]): TaxSummary {
   )
 
   let effectiveTaxRate = new Decimal(0)
-  if (totalGrossProfit.gt(0)) {
-    effectiveTaxRate = totalDirectTax.div(totalGrossProfit).times(100)
+  if (taxablePositiveGain.gt(0)) {
+    effectiveTaxRate = totalDirectTax.div(taxablePositiveGain).times(100)
   }
 
   const avgProfitPerTrade = profitableTrades.length > 0
@@ -305,17 +403,21 @@ function buildTaxSummary(trades: TaxedRealizedTrade[]): TaxSummary {
     totalSellValue: totalSellValue.toString(),
     totalGrossProfit: totalGrossProfit.toString(),
     totalGrossLoss: totalGrossLoss.toString(),
+    taxablePositiveGain: taxablePositiveGain.toString(),
     totalFees: totalFees.toString(),
     totalGstOnFees: totalGstOnFees.toString(),
     totalTds: totalTds.toString(),
-    totalDirectTax: totalDirectTax.toString(),
+    totalBaseCryptoTax: totalBaseCryptoTax.toString(),
+    totalSurcharge: totalSurcharge.toString(),
     totalCess: totalCess.toString(),
+    totalDirectTax: totalDirectTax.toString(),
     totalNetProfit: totalNetProfit.toString(),
     totalNetProfitFromProfitableTrades: totalNetProfitFromProfitableTrades.toString(),
     totalNetLossFromLossTrades: totalNetLossFromLossTrades.toString(),
     effectiveTaxRate: effectiveTaxRate.toString(),
     avgProfitPerTrade: avgProfitPerTrade.toString(),
     avgLossPerTrade: avgLossPerTrade.toString(),
+    surchargeApplicable,
   }
 }
 
@@ -330,16 +432,20 @@ function createEmptySummary(): TaxSummary {
     totalSellValue: '0',
     totalGrossProfit: '0',
     totalGrossLoss: '0',
+    taxablePositiveGain: '0',
     totalFees: '0',
     totalGstOnFees: '0',
     totalTds: '0',
-    totalDirectTax: '0',
+    totalBaseCryptoTax: '0',
+    totalSurcharge: '0',
     totalCess: '0',
+    totalDirectTax: '0',
     totalNetProfit: '0',
     totalNetProfitFromProfitableTrades: '0',
     totalNetLossFromLossTrades: '0',
     effectiveTaxRate: '0',
     avgProfitPerTrade: '0',
     avgLossPerTrade: '0',
+    surchargeApplicable: false,
   }
 }

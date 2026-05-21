@@ -79,7 +79,10 @@ export async function generateReport(workspaceId: string, userId: string): Promi
   }
 
   // ── Step 3: Run FIFO engine ──
-  const tradeInputs: TradeInput[] = trades.map(trade => ({
+  // Use database ID-based ordering as a stable tiebreaker for same-timestamp trades.
+  // CUIDs are lexicographically ordered by creation time, so earlier-created
+  // trades have "smaller" IDs, maintaining insertion order from CSV parsing.
+  const tradeInputs: TradeInput[] = trades.map((trade, index) => ({
     id: trade.id,
     tradeTime: trade.tradeTime,
     pair: trade.pair,
@@ -91,6 +94,7 @@ export async function generateReport(workspaceId: string, userId: string): Promi
     fee: trade.fee,
     tds: trade.tds,
     csvFileId: trade.csvFileId,
+    originalRowIndex: index,  // Use array index from DB query (already sorted by tradeTime ASC)
   }))
 
   const fifoResult = runFifoEngine(tradeInputs)

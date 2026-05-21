@@ -45,6 +45,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { generateFYOptions } from '@/lib/tax-defaults'
 import {
   Settings,
   Save,
@@ -82,13 +83,7 @@ const ICON_OPTIONS = [
 
 // ── Financial Year options ──────────────────────────────────
 
-const FY_OPTIONS = [
-  '2024-25',
-  '2025-26',
-  '2026-27',
-  '2027-28',
-  '2028-29',
-]
+const FY_OPTIONS = generateFYOptions()
 
 // ── Workspace Stats interface ──────────────────────────────
 

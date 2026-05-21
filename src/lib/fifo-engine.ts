@@ -255,8 +255,10 @@ export function runFifoEngine(trades: TradeInput[]): FifoResult {
           if (remainingSellQty.lte(0)) break
 
           // CRITICAL: Never match with a BUY that happens AFTER this SELL
+          // Since buy lots are in chronological order, once we hit a future
+          // buy, all remaining lots are also future → break immediately
           if (buyLot.buyTime.getTime() > new Date(trade.tradeTime).getTime()) {
-            continue
+            break
           }
 
           const matchedQty = Decimal.min(remainingSellQty, buyLot.remainingQty)

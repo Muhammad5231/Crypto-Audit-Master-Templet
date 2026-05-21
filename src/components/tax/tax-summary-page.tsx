@@ -121,11 +121,15 @@ interface TaxSummary {
   totalSellValue: string
   totalGrossProfit: string
   totalGrossLoss: string
+  taxablePositiveGain?: string
   totalFees: string
   totalGstOnFees: string
   totalTds: string
+  totalBaseCryptoTax?: string
+  totalSurcharge?: string
   totalDirectTax: string
   totalCess: string
+  surchargeApplicable?: boolean
   totalNetProfit: string
   totalNetProfitFromProfitableTrades: string
   totalNetLossFromLossTrades: string
@@ -349,6 +353,7 @@ export default function TaxSummaryPage() {
     let baseCryptoTax = toD(0)
     let cess = toD(0)
     let totalDirectTax = toD(0)
+    let surcharge = toD(0)
     let netProfit = toD(0)
     let finalNetProfit = toD(0)
     let tdsFromCsv = toD(0)
@@ -402,6 +407,18 @@ export default function TaxSummaryPage() {
       }
     }
 
+    // Use surcharge from API taxSummary if available (aggregate-level calculation)
+    const apiTaxSummary = report?.taxSummary
+    if (apiTaxSummary?.totalSurcharge) {
+      surcharge = toD(apiTaxSummary.totalSurcharge)
+      // Override aggregate tax values with API's surcharge-inclusive calculation
+      if (apiTaxSummary.totalBaseCryptoTax) baseCryptoTax = toD(apiTaxSummary.totalBaseCryptoTax)
+      if (apiTaxSummary.totalCess) cess = toD(apiTaxSummary.totalCess)
+      if (apiTaxSummary.totalDirectTax) totalDirectTax = toD(apiTaxSummary.totalDirectTax)
+    }
+
+    const surchargeApplicable = surcharge.gt(0)
+
     return {
       grossProfit,
       taxablePositiveGain,
@@ -410,7 +427,9 @@ export default function TaxSummaryPage() {
       totalTds,
       baseCryptoTax,
       cess,
+      surcharge,
       totalDirectTax,
+      surchargeApplicable,
       netProfit,
       finalNetProfit,
       tdsFromCsv,
