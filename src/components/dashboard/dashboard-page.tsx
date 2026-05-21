@@ -10,13 +10,13 @@
 //   4. Top Performing Pairs + Alerts & Data Quality
 //   5. Recent Realized Trades + Open Holdings previews
 //
-// Mobile layout: hero profit card + 2-col KPIs + stacked sections
+// Mobile layout: swipeable carousel KPI cards + stacked sections
 // Desktop layout: single-row KPIs + side-by-side panels
 //
 // All hooks are called unconditionally before any early returns.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useWorkspaceStore } from '@/stores/workspace-store'
 import { useAppStore } from '@/stores/app-store'
 import { apiGet, apiPost } from '@/lib/api-client'
@@ -25,6 +25,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+} from '@/components/ui/carousel'
 import {
   TrendingUp,
   IndianRupee,
@@ -511,44 +516,24 @@ export default function DashboardPage() {
 
       {/* ══════════════════════════════════════════════════════
           ROW 2: Primary Summary KPI Cards
-          Mobile: Hero profit card + 2-col mini cards
+          Mobile: Swipeable carousel slider cards
           Desktop: Single row of 6 compact cards
           ══════════════════════════════════════════════════════ */}
 
-      {/* Mobile Hero: Final Net Profit (visible only on small screens) */}
-      <Card className="rounded-xl border-border shadow-sm bg-gradient-to-br from-teal-500/[0.06] to-transparent sm:hidden">
-        <CardContent className="p-5">
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="text-sm font-medium text-muted-foreground">Final Net Profit</span>
-            {hasReport && (
-              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${
-                kpiData.isProfit
-                  ? 'border-green-500/30 text-green-600 dark:text-green-400'
-                  : 'border-red-500/30 text-red-600 dark:text-red-400'
-              }`}>
-                {kpiData.isProfit ? (
-                  <><ArrowUpRight className="h-2.5 w-2.5 mr-0.5" />PROFIT</>
-                ) : (
-                  <><ArrowDownRight className="h-2.5 w-2.5 mr-0.5" />LOSS</>
-                )}
-              </Badge>
-            )}
-          </div>
-          <span className={`text-2xl font-bold tracking-tight ${kpiData.isProfit ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-            {hasReport ? formatINR(kpiData.finalNetProfit) : '--'}
-          </span>
-          <p className="text-xs text-muted-foreground mt-1.5">
-            Gross: <span className="font-medium text-foreground">{hasReport ? formatINR(kpiData.grossProfit) : '--'}</span>
-            {' · '}
-            Deductions: <span className="font-medium text-foreground">{hasReport ? formatINR(kpiData.totalDeductions) : '--'}</span>
-          </p>
-        </CardContent>
-      </Card>
+      {/* ── Mobile: Carousel Slider ── */}
+      <div className="sm:hidden">
+        <KpiCarousel
+          kpiData={kpiData}
+          holdingsCostBasis={holdingsCostBasis}
+          openHoldingsCount={report?.openHoldings?.length ?? 0}
+          hasReport={hasReport}
+        />
+      </div>
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        {/* 1. Final Net Profit — Desktop card (hidden on mobile) */}
-        <Card className="rounded-xl border-border shadow-sm hidden sm:block bg-gradient-to-br from-teal-500/[0.04] to-transparent">
+      {/* ── Desktop: Grid Cards ── */}
+      <div className="hidden sm:grid grid-cols-3 xl:grid-cols-6 gap-3">
+        {/* 1. Final Net Profit */}
+        <Card className="rounded-xl border-border shadow-sm bg-gradient-to-br from-teal-500/[0.04] to-transparent">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/10">
@@ -1018,6 +1003,246 @@ export default function DashboardPage() {
 
 // ── Sub-components ─────────────────────────────────────────
 
+// KPI card data shape for the mobile carousel
+interface KpiCardData {
+  finalNetProfit: ReturnType<typeof toD>
+  grossProfit: ReturnType<typeof toD>
+  totalDeductions: ReturnType<typeof toD>
+  totalTds: ReturnType<typeof toD>
+  realizedCount: number
+  isProfit: boolean
+}
+
+function KpiCarousel({
+  kpiData,
+  holdingsCostBasis,
+  openHoldingsCount,
+  hasReport,
+}: {
+  kpiData: KpiCardData
+  holdingsCostBasis: ReturnType<typeof toD>
+  openHoldingsCount: number
+  hasReport: boolean
+}) {
+  const [activeIndex, setActiveIndex] = useState(0)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const isDragging = useRef(false)
+  const startX = useRef(0)
+  const scrollLeft = useRef(0)
+
+  // KPI card definitions
+  const kpiCards = [
+    {
+      id: 'net-profit',
+      title: 'Final Net Profit',
+      value: hasReport ? formatINR(kpiData.finalNetProfit) : '--',
+      subtitle: hasReport
+        ? `Gross: ${formatINR(kpiData.grossProfit)}`
+        : 'After all deductions',
+      icon: IndianRupee,
+      iconBg: 'bg-teal-500/10',
+      iconColor: 'text-teal-500',
+      valueColor: kpiData.isProfit ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400',
+      badge: hasReport ? (kpiData.isProfit ? 'PROFIT' : 'LOSS') : null,
+      badgeIcon: kpiData.isProfit ? ArrowUpRight : ArrowDownRight,
+      badgeColor: kpiData.isProfit
+        ? 'border-green-500/30 text-green-600 dark:text-green-400'
+        : 'border-red-500/30 text-red-600 dark:text-red-400',
+      gradient: 'from-teal-500/[0.08] to-teal-500/0',
+    },
+    {
+      id: 'gross-profit',
+      title: 'Gross Profit',
+      value: hasReport ? formatINR(kpiData.grossProfit) : '--',
+      subtitle: 'Before deductions',
+      icon: TrendingUp,
+      iconBg: 'bg-green-500/10',
+      iconColor: 'text-green-500',
+      valueColor: '',
+      gradient: 'from-green-500/[0.06] to-green-500/0',
+    },
+    {
+      id: 'deductions',
+      title: 'Total Deductions',
+      value: hasReport ? formatINR(kpiData.totalDeductions) : '--',
+      subtitle: 'Fees + GST + Direct Tax',
+      icon: Receipt,
+      iconBg: 'bg-orange-500/10',
+      iconColor: 'text-orange-500',
+      valueColor: '',
+      gradient: 'from-orange-500/[0.06] to-orange-500/0',
+    },
+    {
+      id: 'tds',
+      title: 'TDS Withheld',
+      value: hasReport ? formatINR(kpiData.totalTds) : '--',
+      subtitle: 'Tax credit available',
+      icon: ShieldCheck,
+      iconBg: 'bg-purple-500/10',
+      iconColor: 'text-purple-500',
+      valueColor: '',
+      gradient: 'from-purple-500/[0.06] to-purple-500/0',
+    },
+    {
+      id: 'holdings',
+      title: 'Open Holdings',
+      value: hasReport ? formatINR(holdingsCostBasis) : '--',
+      subtitle: hasReport
+        ? `${openHoldingsCount} lot${openHoldingsCount !== 1 ? 's' : ''} open`
+        : 'Cost basis',
+      icon: Wallet,
+      iconBg: 'bg-teal-500/10',
+      iconColor: 'text-teal-500',
+      valueColor: '',
+      gradient: 'from-teal-500/[0.06] to-teal-500/0',
+    },
+    {
+      id: 'trades',
+      title: 'Realized Trades',
+      value: hasReport ? String(kpiData.realizedCount) : '--',
+      subtitle: 'In selected period',
+      icon: ArrowLeftRight,
+      iconBg: 'bg-amber-500/10',
+      iconColor: 'text-amber-500',
+      valueColor: '',
+      gradient: 'from-amber-500/[0.06] to-amber-500/0',
+    },
+  ]
+
+  // Handle scroll snap detection for active dot indicator
+  const handleScroll = useCallback(() => {
+    if (!scrollRef.current) return
+    const container = scrollRef.current
+    const cardWidth = container.scrollWidth / kpiCards.length
+    const newIndex = Math.round(container.scrollLeft / cardWidth)
+    if (newIndex !== activeIndex && newIndex >= 0 && newIndex < kpiCards.length) {
+      setActiveIndex(newIndex)
+    }
+  }, [activeIndex, kpiCards.length])
+
+  // Drag-to-scroll handlers for native feel
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!scrollRef.current) return
+    isDragging.current = true
+    startX.current = e.pageX - scrollRef.current.offsetLeft
+    scrollLeft.current = scrollRef.current.scrollLeft
+  }, [])
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging.current || !scrollRef.current) return
+    e.preventDefault()
+    const x = e.pageX - scrollRef.current.offsetLeft
+    const walk = (x - startX.current) * 1.5
+    scrollRef.current.scrollLeft = scrollLeft.current - walk
+  }, [])
+
+  const handleMouseUp = useCallback(() => {
+    isDragging.current = false
+  }, [])
+
+  // Touch handlers for mobile
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!scrollRef.current) return
+    isDragging.current = true
+    startX.current = e.touches[0].pageX - scrollRef.current.offsetLeft
+    scrollLeft.current = scrollRef.current.scrollLeft
+  }, [])
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isDragging.current || !scrollRef.current) return
+    const x = e.touches[0].pageX - scrollRef.current.offsetLeft
+    const walk = (x - startX.current) * 1.5
+    scrollRef.current.scrollLeft = scrollLeft.current - walk
+  }, [])
+
+  const handleTouchEnd = useCallback(() => {
+    isDragging.current = false
+  }, [])
+
+  return (
+    <div>
+      {/* Scrollable card strip */}
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide px-0.5 pb-2 cursor-grab active:cursor-grabbing select-none"
+        style={{
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+        }}
+      >
+        {kpiCards.map((card) => {
+          const Icon = card.icon
+          return (
+            <div
+              key={card.id}
+              className="snap-center shrink-0 w-[260px]"
+            >
+              <Card className={`rounded-2xl border-border/60 shadow-sm bg-gradient-to-br ${card.gradient} h-full`}>
+                <CardContent className="p-4">
+                  {/* Icon + Title row */}
+                  <div className="flex items-center gap-2.5 mb-3">
+                    <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${card.iconBg}`}>
+                      <Icon className={`h-4.5 w-4.5 ${card.iconColor}`} />
+                    </div>
+                    <span className="text-xs font-medium text-muted-foreground leading-tight">{card.title}</span>
+                  </div>
+
+                  {/* Value */}
+                  <div className="flex items-baseline gap-2">
+                    <span className={`text-xl font-bold tracking-tight ${card.valueColor}`}>
+                      {card.value}
+                    </span>
+                    {card.badge && (
+                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${card.badgeColor}`}>
+                        {card.badgeIcon && <card.badgeIcon className="h-2.5 w-2.5 mr-0.5" />}
+                        {card.badge}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Subtitle */}
+                  <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">{card.subtitle}</p>
+                </CardContent>
+              </Card>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Dot indicators */}
+      <div className="flex items-center justify-center gap-1.5 mt-1">
+        {kpiCards.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => {
+              if (scrollRef.current) {
+                const cardWidth = scrollRef.current.scrollWidth / kpiCards.length
+                scrollRef.current.scrollTo({ left: cardWidth * i, behavior: 'smooth' })
+                setActiveIndex(i)
+              }
+            }}
+            className={`h-1.5 rounded-full transition-all duration-300 ${
+              i === activeIndex
+                ? 'w-5 bg-teal-500'
+                : 'w-1.5 bg-muted-foreground/25 hover:bg-muted-foreground/40'
+            }`}
+            aria-label={`Go to slide ${i + 1}`}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function EmptyChart({ message }: { message: string }) {
   return (
     <div className="flex flex-col items-center justify-center h-[200px] text-center">
@@ -1039,15 +1264,23 @@ function DashboardSkeleton() {
         <Skeleton className="h-9 w-[360px] rounded-lg hidden sm:block" />
         <Skeleton className="h-9 w-full rounded-lg sm:hidden" />
       </div>
-      {/* Mobile hero skeleton */}
-      <Skeleton className="h-24 rounded-xl sm:hidden" />
-      {/* KPI cards skeleton */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        <Skeleton className="h-[88px] rounded-xl hidden sm:block" />
-        {Array.from({ length: 5 }).map((_, i) => (
+      {/* Mobile carousel skeleton */}
+      <div className="sm:hidden">
+        <div className="flex gap-3 overflow-hidden">
+          <Skeleton className="h-[120px] w-[260px] rounded-2xl shrink-0" />
+          <Skeleton className="h-[120px] w-[260px] rounded-2xl shrink-0" />
+        </div>
+        <div className="flex justify-center gap-1.5 mt-2">
+          <Skeleton className="h-1.5 w-5 rounded-full" />
+          <Skeleton className="h-1.5 w-1.5 rounded-full" />
+          <Skeleton className="h-1.5 w-1.5 rounded-full" />
+        </div>
+      </div>
+      {/* Desktop KPI cards skeleton */}
+      <div className="hidden sm:grid grid-cols-3 xl:grid-cols-6 gap-3">
+        {Array.from({ length: 6 }).map((_, i) => (
           <Skeleton key={i} className="h-[88px] rounded-xl" />
         ))}
-        <Skeleton className="h-[88px] rounded-xl sm:hidden" />
       </div>
       {/* Charts skeleton */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
