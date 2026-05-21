@@ -256,9 +256,13 @@ export default function UploadPage() {
     try {
       await apiPost(`/api/workspaces/${currentWorkspace.id}/reports/process`)
       toast({
-        title: 'Report processed',
-        description: 'Your FIFO report has been generated. Check the Dashboard.',
+        title: 'Report processed successfully!',
+        description: 'Your FIFO report has been generated. Redirecting to Dashboard...',
       })
+      // Navigate to dashboard after a brief delay so user sees the toast
+      setTimeout(() => {
+        setCurrentPage('dashboard')
+      }, 800)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to process report'
       toast({
@@ -308,7 +312,7 @@ export default function UploadPage() {
 
   if (isMobile) {
     return (
-      <div className="space-y-4 px-4 pb-6">
+      <div className="space-y-4 pb-6">
         {/* Mobile Header */}
         <div>
           <h1 className="text-xl font-bold">Upload CSV</h1>

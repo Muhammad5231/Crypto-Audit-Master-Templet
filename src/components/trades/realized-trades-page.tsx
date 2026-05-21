@@ -417,7 +417,7 @@ export default function RealizedTradesPage() {
     const currentTrade = filteredTrades[mobileIndex]
 
     return (
-      <div className="space-y-4 px-4 pb-6">
+      <div className="space-y-4 pb-6">
         {/* Mobile Header */}
         <div>
           <h1 className="text-xl font-bold">Realized Trades</h1>

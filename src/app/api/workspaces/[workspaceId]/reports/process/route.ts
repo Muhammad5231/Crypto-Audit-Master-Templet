@@ -44,7 +44,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
       select: { id: true },
     })
 
-    // ── Save report to database ──
+    // ── Delete old reports for this workspace (replace with fresh one) ──
+    await db.report.deleteMany({
+      where: { workspaceId },
+    })
+
+    // ── Save new report to database ──
     const savedReport = await db.report.create({
       data: {
         userId,

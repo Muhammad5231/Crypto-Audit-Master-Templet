@@ -48,12 +48,17 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       where: { csvFileId },
     })
 
-    // ── Step 4: Delete the CsvFile record ──
+    // ── Step 4: Delete all reports for this workspace (they're now stale) ──
+    await db.report.deleteMany({
+      where: { workspaceId },
+    })
+
+    // ── Step 5: Delete the CsvFile record ──
     await db.csvFile.delete({
       where: { id: csvFileId },
     })
 
-    // ── Step 5: Remove physical file from disk ──
+    // ── Step 6: Remove physical file from disk ──
     try {
       const filePath = path.join(process.cwd(), 'upload', csvFile.storedName)
       if (fs.existsSync(filePath)) {
@@ -64,7 +69,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       // Non-critical: failure to delete from disk shouldn't fail the request
     }
 
-    // ── Step 6: Return success response ──
+    // ── Step 7: Return success response ──
     return successResponse(null, 'CSV file deleted successfully')
   } catch (err) {
     if (err instanceof Error && (err.message.includes('Authorization') || err.message.includes('token'))) {

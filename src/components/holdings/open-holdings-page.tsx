@@ -603,7 +603,7 @@ export default function OpenHoldingsPage() {
     const currentHolding = filteredHoldings[mobileIndex]
 
     return (
-      <div className="space-y-4 px-4 pb-6">
+      <div className="space-y-4 pb-6">
         {/* Mobile Header */}
         <div>
           <h1 className="text-xl font-bold">Open Holdings</h1>
