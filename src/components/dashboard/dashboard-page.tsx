@@ -228,7 +228,7 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [timeFrame, setTimeFrame] = useState<TimeFrame>('7d')
+  const [timeFrame, setTimeFrame] = useState<TimeFrame>('all')
 
   // ── Fetch latest report ──
   const fetchReport = useCallback(async () => {

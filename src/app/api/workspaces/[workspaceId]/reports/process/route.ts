@@ -35,6 +35,37 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return errorResponse('No trades found in this workspace. Upload CSV files first.', 422)
     }
 
+    // ── Auto-detect Delta Exchange & ensure feesIncludeGst is correct ──
+    // Safety measure: if CSV was uploaded before the auto-detection was added,
+    // this ensures the setting is correct when reprocessing.
+    const trades = await db.trade.findMany({
+      where: { workspaceId, side: 'BUY' },
+      select: { pair: true, fee: true },
+      take: 20,
+    })
+    const isDeltaExchange = trades.some(t => t.pair.includes('_INR') && t.fee === '0')
+    if (isDeltaExchange) {
+      const existingSettings = await db.exchangeSettings.findFirst({ where: { workspaceId } })
+      if (existingSettings && !existingSettings.feesIncludeGst) {
+        await db.exchangeSettings.update({
+          where: { id: existingSettings.id },
+          data: {
+            feesIncludeGst: true,
+            applyDefaultFees: false,
+          },
+        })
+      } else if (!existingSettings) {
+        await db.exchangeSettings.create({
+          data: {
+            userId,
+            workspaceId,
+            feesIncludeGst: true,
+            applyDefaultFees: false,
+          },
+        })
+      }
+    }
+
     // ── Generate the complete report ──
     const report = await generateReport(workspaceId, userId)
 

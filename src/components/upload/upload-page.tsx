@@ -61,6 +61,8 @@ interface UploadResult {
   unmappedColumns: string[]
   requiredMapping: string[]
   isDuplicate: boolean
+  reportGenerated?: boolean
+  isDeltaExchange?: boolean
   message?: string
 }
 
@@ -128,6 +130,14 @@ export default function UploadPage() {
       )
       setUploadResult(result)
       await fetchFiles()
+
+      // If report was auto-generated, navigate to dashboard after a brief delay
+      // so the user can see the upload success message
+      if (result.reportGenerated) {
+        setTimeout(() => {
+          setCurrentPage('dashboard')
+        }, 1500)
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Upload failed'
       setError(msg)
@@ -333,6 +343,15 @@ export default function UploadPage() {
                     ? uploadResult.message
                     : `${uploadResult.validRows} trades imported, ${uploadResult.skippedRows} rows skipped from ${uploadResult.originalName}`}
                 </p>
+                {uploadResult.reportGenerated && (
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Report auto-generated — navigating to dashboard...
+                    {uploadResult.isDeltaExchange && (
+                      <span className="ml-1 text-teal-600 dark:text-teal-400">• Delta Exchange detected (GST included in fees)</span>
+                    )}
+                  </p>
+                )}
                 {!uploadResult.isDuplicate && uploadResult.skipReasons.length > 0 && (
                   <div className="mt-2 space-y-0.5">
                     {uploadResult.skipReasons.slice(0, 3).map((reason, i) => (
@@ -455,8 +474,8 @@ export default function UploadPage() {
         </CardContent>
       </Card>
 
-      {/* Process Report Button */}
-      {csvFiles.length > 0 && (
+      {/* Process Report Button — only shown when report needs manual generation */}
+      {csvFiles.length > 0 && !uploadResult?.reportGenerated && (
         <Card className="rounded-xl border-border shadow-sm bg-gradient-to-br from-teal-500/[0.04] to-transparent">
           <CardContent className="p-5 flex flex-col sm:flex-row items-center gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-500/10 shrink-0">

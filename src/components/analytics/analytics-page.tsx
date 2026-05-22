@@ -249,7 +249,7 @@ export default function AnalyticsPage() {
   const [error, setError] = useState<string | null>(null)
 
   // Filters
-  const [timeFrame, setTimeFrame] = useState<TimeFrame>('30d')
+  const [timeFrame, setTimeFrame] = useState<TimeFrame>('all')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
   const [pairFilter, setPairFilter] = useState<string>('all')
