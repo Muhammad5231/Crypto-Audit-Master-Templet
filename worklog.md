@@ -48,3 +48,20 @@ Stage Summary:
 - Each card is 260px wide, fits in slider with snap-to-center behavior
 - Dot indicators show current position, clickable to navigate
 - Desktop layout unchanged (3-col → 6-col grid)
+
+---
+Task ID: 2
+Agent: main
+Task: Fix build error - missing upload-page component
+
+Work Log:
+- Discovered /src/components/upload/ directory did not exist at all
+- Created the directory and full upload-page.tsx component
+- Component features: drag-and-drop CSV upload, file picker, upload result display, uploaded files list with delete, process report button
+- Uses apiUpload, apiGet, apiDelete from api-client
+- Integrates with workspace-scoped API routes (/api/workspaces/:id/uploads/csv, /api/workspaces/:id/uploads)
+- Build verified successfully
+
+Stage Summary:
+- Build error fixed - upload-page component now exists
+- Full-featured upload page with drag-and-drop, file list, and process report action
