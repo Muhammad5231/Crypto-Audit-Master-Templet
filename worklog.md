@@ -65,3 +65,23 @@ Work Log:
 Stage Summary:
 - Build error fixed - upload-page component now exists
 - Full-featured upload page with drag-and-drop, file list, and process report action
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix Analytics page Top Profitable Pairs chart for mobile view
+
+Work Log:
+- Analyzed uploaded screenshot showing Top Profitable Pairs chart crammed on mobile
+- Identified issues: horizontal BarChart with Y-axis labels cramped, fixed 260px height insufficient for multiple pairs, label overlap, wasted padding
+- Replaced mobile Recharts horizontal BarChart with a custom card-based list design
+- New design: each pair shown as a row with rank number, pair name, profit amount, proportional gradient progress bar, and trade count/gross profit metadata
+- Progress bars use teal→emerald gradient for profits, red→rose for losses
+- Dynamic height adjusts based on number of pairs
+- Desktop layout unchanged
+- Build passes successfully
+
+Stage Summary:
+- Replaced cramped horizontal bar chart with mobile-friendly card list with progress bars
+- File modified: /home/z/my-project/src/components/analytics/analytics-page.tsx (lines 866-907)
+- Build: PASSING

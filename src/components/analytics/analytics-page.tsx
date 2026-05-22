@@ -863,18 +863,48 @@ export default function AnalyticsPage() {
           ) : <EmptyChart />}
         </ChartCard>
 
-        {/* 3. Top Profitable Pairs */}
-        <ChartCard title="Top Profitable Pairs" description="By Final Net Profit" config={{ value: { label: 'Profit', color: COLORS.teal } }}>
-          {topProfitablePairs.length > 0 ? (
-            <BarChart data={topProfitablePairs} layout="vertical" margin={{ top: 5, right: 5, left: 60, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
-              <XAxis type="number" tick={{ fontSize: 9 }} />
-              <YAxis type="category" dataKey="pair" tick={{ fontSize: 9 }} width={80} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="value" fill={COLORS.teal} radius={[0, 4, 4, 0]} />
-            </BarChart>
-          ) : <EmptyChart />}
-        </ChartCard>
+        {/* 3. Top Profitable Pairs — Mobile card list */}
+        <Card className="rounded-xl border-border shadow-sm">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="text-sm font-semibold">Top Profitable Pairs</CardTitle>
+            <CardDescription className="text-xs">By Final Net Profit</CardDescription>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            {topProfitablePairs.length > 0 ? (
+              <div className="space-y-2.5">
+                {topProfitablePairs.map((item, index) => {
+                  const maxVal = Math.max(...topProfitablePairs.map(p => Math.abs(p.value)), 1)
+                  const pct = Math.max((Math.abs(item.value) / maxVal) * 100, 4)
+                  const isPositive = item.value >= 0
+                  return (
+                    <div key={item.pair} className="space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="text-[10px] font-medium text-muted-foreground w-4 shrink-0">{index + 1}</span>
+                          <span className="text-xs font-semibold truncate">{item.pair.replace('_', '/')}</span>
+                        </div>
+                        <span className={`text-xs font-bold whitespace-nowrap ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
+                          {isPositive ? '+' : ''}{formatINR(toD(item.value))}
+                        </span>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted/60 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${isPositive ? 'bg-gradient-to-r from-teal-500 to-emerald-400' : 'bg-gradient-to-r from-red-500 to-rose-400'}`}
+                          style={{ width: `${pct}%`, transition: 'width 0.4s ease' }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                        <span>{item.count} trade{item.count !== 1 ? 's' : ''}</span>
+                        <span>·</span>
+                        <span>Gross: {formatINR(toD(item.grossProfit))}</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : <EmptyChart />}
+          </CardContent>
+        </Card>
 
         {/* 4. Deductions Breakdown */}
         <ChartCard title="Deductions Breakdown" description="Fees, GST, TDS, Tax" config={{ Fees: { label: 'Fees', color: DEDUCTION_COLORS[0] }, 'GST on Fees': { label: 'GST', color: DEDUCTION_COLORS[1] }, 'Total Tax': { label: 'Tax', color: DEDUCTION_COLORS[2] }, 'TDS Withheld': { label: 'TDS Withheld', color: DEDUCTION_COLORS[3] } }}>
