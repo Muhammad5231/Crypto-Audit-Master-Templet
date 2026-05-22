@@ -85,3 +85,40 @@ Stage Summary:
 - Replaced cramped horizontal bar chart with mobile-friendly card list with progress bars
 - File modified: /home/z/my-project/src/components/analytics/analytics-page.tsx (lines 866-907)
 - Build: PASSING
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Fix dashboard and analytics data mismatches with CSV data
+
+Work Log:
+- Analyzed uploaded CSV: 50 closed trades (33 buys, 17 sells) from Delta Exchange
+- Performed correct FIFO matching with Python: BTC=₹115.68 P&L, ETH=-₹64.74 P&L, SOL=open
+- Identified 3 critical bugs causing data mismatches:
+  1. Tax engine applied 0.1% default buy fees when CSV shows 0 (Delta has 0 buy fees)
+  2. Tax engine added GST on top of GST-inclusive fees (Delta fees include 18% GST)
+  3. Tax engine applied 1% default TDS when CSV has no TDS column
+- Verified Delta Exchange fee structure: fees are 0.09% base + 18% GST = 0.1062% (GST-inclusive)
+- Added `feesIncludeGst` and `applyDefaultFees` boolean fields to ExchangeSettings (Prisma schema)
+- Fixed tax engine: `resolveFee()` and `resolveTds()` now respect `applyDefaultFees` flag
+  - When false (default): CSV fee=0 means "no fee charged" — don't apply defaults
+  - When true: CSV fee=0 means "fee data missing" — apply default percentages
+- Fixed tax engine: when `feesIncludeGst=true`, GST is NOT added on top of fees
+- Fixed FIFO engine: accepts `feesIncludeGst` option to skip inline GST computation
+- Updated report builder to pass new settings to both engines
+- Updated Exchange Settings API to accept and persist new fields
+- Added toggle switches to Exchange Settings UI for both new options
+- Added auto-detection of Delta Exchange in confirm-mapping endpoint: auto-configures feesIncludeGst=true and applyDefaultFees=false
+
+Stage Summary:
+- 3 critical calculation bugs fixed in tax engine and FIFO engine
+- New ExchangeSettings fields: feesIncludeGst (boolean), applyDefaultFees (boolean)
+- Files modified:
+  - prisma/schema.prisma (2 new fields)
+  - src/lib/tax-engine.ts (fee/TDS resolution, GST handling)
+  - src/lib/fifo-engine.ts (feesIncludeGst option)
+  - src/lib/report-builder.ts (pass new settings)
+  - src/app/api/workspaces/[workspaceId]/settings/exchange/route.ts (API support)
+  - src/app/api/workspaces/[workspaceId]/uploads/csv/confirm-mapping/route.ts (auto-detect Delta)
+  - src/components/settings/exchange-settings-page.tsx (UI toggles)
+- Build: PASSING

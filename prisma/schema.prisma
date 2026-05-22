@@ -136,6 +136,8 @@ model ExchangeSettings {
   gstPercent           String   @default("18.0")
   cryptoTaxPercent     String   @default("30.0")
   cessPercent          String   @default("4.0")
+  feesIncludeGst       Boolean  @default(false)   // If true, CSV fee values already include GST — don't add GST on top
+  applyDefaultFees     Boolean  @default(false)   // If true, apply default fee % when CSV fee = 0; if false, treat CSV 0 as explicit
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 

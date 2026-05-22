@@ -201,6 +201,36 @@ export async function POST(request: NextRequest, context: RouteContext) {
     let reportGenerated = false
     if (parseResult.trades.length > 0) {
       try {
+        // ── Auto-detect Delta Exchange and configure settings ──
+        // Delta Exchange India CSVs include GST in their "Trading Fees" column
+        // and have 0 buy fees. We auto-configure the workspace settings accordingly.
+        const detectedExchange = (exchangeName || '').toLowerCase()
+        const isDeltaExchange = detectedExchange.includes('delta')
+          || originalName.toLowerCase().includes('delta')
+          || parseResult.trades.some(t => t.pair.includes('_INR') && t.fee === '0' && t.side === 'BUY')
+
+        if (isDeltaExchange) {
+          const existingSettings = await db.exchangeSettings.findFirst({ where: { workspaceId } })
+          if (existingSettings) {
+            await db.exchangeSettings.update({
+              where: { id: existingSettings.id },
+              data: {
+                feesIncludeGst: true,
+                applyDefaultFees: false,
+              },
+            })
+          } else {
+            await db.exchangeSettings.create({
+              data: {
+                userId,
+                workspaceId,
+                feesIncludeGst: true,
+                applyDefaultFees: false,
+              },
+            })
+          }
+        }
+
         // Delete old reports for this workspace to avoid stale data
         await db.report.deleteMany({
           where: { workspaceId },

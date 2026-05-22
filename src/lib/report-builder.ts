@@ -97,7 +97,9 @@ export async function generateReport(workspaceId: string, userId: string): Promi
     originalRowIndex: index,  // Use array index from DB query (already sorted by tradeTime ASC)
   }))
 
-  const fifoResult = runFifoEngine(tradeInputs)
+  const fifoResult = runFifoEngine(tradeInputs, {
+    feesIncludeGst: exchangeSettings.feesIncludeGst ?? false,
+  })
 
   // ── Step 4: Run tax engine ──
   const taxResult = runTaxEngine(fifoResult.realizedTrades, {
@@ -107,6 +109,8 @@ export async function generateReport(workspaceId: string, userId: string): Promi
     gstPercent: exchangeSettings.gstPercent,
     cryptoTaxPercent: exchangeSettings.cryptoTaxPercent,
     cessPercent: exchangeSettings.cessPercent,
+    feesIncludeGst: exchangeSettings.feesIncludeGst ?? false,
+    applyDefaultFees: exchangeSettings.applyDefaultFees ?? false,
   })
 
   // ── Step 5: Build summary metrics ──

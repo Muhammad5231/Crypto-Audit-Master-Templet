@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { Switch } from '@/components/ui/switch'
 import {
   Dialog,
   DialogContent,
@@ -95,6 +96,8 @@ interface GlobalSettings {
   gstPercent: string
   cryptoTaxPercent: string
   cessPercent: string
+  feesIncludeGst: boolean
+  applyDefaultFees: boolean
   createdAt: string
   updatedAt: string
 }
@@ -123,6 +126,8 @@ export default function ExchangeSettingsPage() {
   const [cryptoTaxPercent, setCryptoTaxPercent] = useState(TAX_DEFAULTS.CRYPTO_TAX_PERCENT)
   const [cessPercent, setCessPercent] = useState(TAX_DEFAULTS.CESS_PERCENT)
   const [gstPercent, setGstPercent] = useState(TAX_DEFAULTS.GST_PERCENT)
+  const [feesIncludeGst, setFeesIncludeGst] = useState(false)
+  const [applyDefaultFees, setApplyDefaultFees] = useState(false)
 
   // ── Add/Edit dialog state ──
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -179,6 +184,8 @@ export default function ExchangeSettingsPage() {
       setCryptoTaxPercent(data.cryptoTaxPercent || '30')
       setCessPercent(data.cessPercent || '4')
       setGstPercent(data.gstPercent || '18')
+      setFeesIncludeGst(data.feesIncludeGst ?? false)
+      setApplyDefaultFees(data.applyDefaultFees ?? false)
       setHasGlobalChanges(false)
     } catch {
       // Silently fail
@@ -199,9 +206,11 @@ export default function ExchangeSettingsPage() {
       tdsPercent !== (globalSettings.defaultTdsPercent || '1') ||
       cryptoTaxPercent !== (globalSettings.cryptoTaxPercent || '30') ||
       cessPercent !== (globalSettings.cessPercent || '4') ||
-      gstPercent !== (globalSettings.gstPercent || '18')
+      gstPercent !== (globalSettings.gstPercent || '18') ||
+      feesIncludeGst !== (globalSettings.feesIncludeGst ?? false) ||
+      applyDefaultFees !== (globalSettings.applyDefaultFees ?? false)
     setHasGlobalChanges(changed)
-  }, [tdsPercent, cryptoTaxPercent, cessPercent, gstPercent, globalSettings])
+  }, [tdsPercent, cryptoTaxPercent, cessPercent, gstPercent, feesIncludeGst, applyDefaultFees, globalSettings])
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // COMPUTED VALUES
@@ -324,6 +333,8 @@ export default function ExchangeSettingsPage() {
           cryptoTaxPercent,
           cessPercent,
           gstPercent,
+          feesIncludeGst,
+          applyDefaultFees,
         }
       )
       setGlobalSettings(data)
@@ -341,6 +352,8 @@ export default function ExchangeSettingsPage() {
     setCryptoTaxPercent(TAX_DEFAULTS.CRYPTO_TAX_PERCENT)
     setCessPercent(TAX_DEFAULTS.CESS_PERCENT)
     setGstPercent(TAX_DEFAULTS.GST_PERCENT)
+    setFeesIncludeGst(false)
+    setApplyDefaultFees(false)
     setHasGlobalChanges(true)
   }
 
@@ -797,6 +810,40 @@ export default function ExchangeSettingsPage() {
             <p className="text-xs text-muted-foreground">
               GST levied on exchange trading fees (18% standard rate)
             </p>
+          </div>
+
+          {/* Fees Include GST Toggle */}
+          <Separator className="my-3" />
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <Label htmlFor="fees-include-gst" className="text-sm font-medium">Fees Include GST</Label>
+              <p className="text-xs text-muted-foreground">
+                Enable if your exchange CSV already includes 18% GST in the fee column (e.g., Delta Exchange India). When enabled, GST will NOT be added on top of fees.
+              </p>
+            </div>
+            <Switch
+              id="fees-include-gst"
+              checked={feesIncludeGst}
+              onCheckedChange={(checked) => { setFeesIncludeGst(checked); setHasGlobalChanges(true) }}
+              className="shrink-0"
+            />
+          </div>
+
+          {/* Apply Default Fees Toggle */}
+          <Separator className="my-3" />
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <Label htmlFor="apply-default-fees" className="text-sm font-medium">Apply Default Fee %</Label>
+              <p className="text-xs text-muted-foreground">
+                When enabled, the default buy/sell fee % will be applied if CSV fee = 0. Keep OFF if your exchange shows 0 fees explicitly (e.g., Delta Exchange has 0 buy fees). Turn ON only if your CSV lacks fee data entirely.
+              </p>
+            </div>
+            <Switch
+              id="apply-default-fees"
+              checked={applyDefaultFees}
+              onCheckedChange={(checked) => { setApplyDefaultFees(checked); setHasGlobalChanges(true) }}
+              className="shrink-0"
+            />
           </div>
         </CardContent>
       </Card>

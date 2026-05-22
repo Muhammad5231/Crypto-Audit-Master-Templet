@@ -30,6 +30,8 @@ export interface ExchangeSettingsInput {
   gstPercent: string             // e.g., "18.0" means 18%
   cryptoTaxPercent: string       // e.g., "30.0" means 30%
   cessPercent: string            // e.g., "4.0" means 4%
+  feesIncludeGst: boolean        // If true, CSV fees already include GST — don't add GST on top
+  applyDefaultFees: boolean      // If true, apply default fee % when CSV fee = 0; if false, treat CSV 0 as explicit
 }
 
 /** A realized trade with fee/TDS source tracking */
@@ -102,12 +104,20 @@ function resolveFee(
   csvFee: string,
   tradeValue: string,
   defaultFeePercent: string,
+  applyDefault: boolean = false,
 ): { fee: Decimal; source: 'CSV' | 'DEFAULT' } {
   const fee = toD(csvFee)
 
   // If CSV provides a non-zero fee, always use it
   if (fee.gt(0)) {
     return { fee, source: 'CSV' }
+  }
+
+  // If CSV fee is 0, check if we should apply defaults.
+  // When applyDefault is false, treat CSV 0 as explicit "no fee".
+  // When applyDefault is true, fall back to default percentage (for CSVs without fee columns).
+  if (!applyDefault) {
+    return { fee: new Decimal(0), source: 'CSV' }
   }
 
   // Fall back to default percentage of trade value
@@ -127,11 +137,17 @@ function resolveTds(
   csvTds: string,
   tradeValue: string,
   defaultTdsPercent: string,
+  applyDefault: boolean = false,
 ): { tds: Decimal; source: 'CSV' | 'DEFAULT' } {
   const tds = toD(csvTds)
 
   if (tds.gt(0)) {
     return { tds, source: 'CSV' }
+  }
+
+  // If CSV TDS is 0, check if we should apply defaults.
+  if (!applyDefault) {
+    return { tds: new Decimal(0), source: 'CSV' }
   }
 
   const percent = toD(defaultTdsPercent).div(100)
@@ -162,6 +178,8 @@ export function runTaxEngine(
   const gstPercent = toD(exchangeSettings.gstPercent).div(100)
   const cryptoTaxPercent = toD(exchangeSettings.cryptoTaxPercent).div(100)
   const cessPercent = toD(exchangeSettings.cessPercent).div(100)
+  const feesIncludeGst = exchangeSettings.feesIncludeGst ?? false
+  const applyDefaultFees = exchangeSettings.applyDefaultFees ?? false
 
   for (const trade of realizedTrades) {
     const buyValue = toD(trade.buyValue)
@@ -169,15 +187,19 @@ export function runTaxEngine(
     const grossProfit = toD(trade.grossProfit)
 
     // ── Fee Resolution ──
+    // When applyDefaultFees is false, CSV fee = 0 means "no fee charged" (explicit).
+    // When applyDefaultFees is true, CSV fee = 0 means "fee data missing, use default %".
     const buyFeeResult = resolveFee(
       trade.allocatedBuyFee,
       trade.buyValue,
       exchangeSettings.defaultBuyFeePercent,
+      applyDefaultFees,
     )
     const sellFeeResult = resolveFee(
       trade.allocatedSellFee,
       trade.sellValue,
       exchangeSettings.defaultSellFeePercent,
+      applyDefaultFees,
     )
 
     const resolvedBuyFee = buyFeeResult.fee
@@ -185,18 +207,27 @@ export function runTaxEngine(
     const resolvedTotalFees = resolvedBuyFee.plus(resolvedSellFee)
 
     // ── GST on resolved fees ──
-    const resolvedGstOnFees = resolvedTotalFees.times(gstPercent)
+    // If feesIncludeGst is true, the CSV fee values already include 18% GST,
+    // so we must NOT add GST on top (would be double-counting).
+    // Exchanges like Delta India include GST in their "Trading Fees" column.
+    const resolvedGstOnFees = feesIncludeGst
+      ? new Decimal(0)
+      : resolvedTotalFees.times(gstPercent)
 
     // ── TDS Resolution ──
+    // Similar to fees: when applyDefaultFees is false, CSV TDS = 0 means "no TDS deducted".
+    // When applyDefaultFees is true, we estimate TDS using the default percentage.
     const buyTdsResult = resolveTds(
       trade.tds, // The FIFO engine already combined buy+sell TDS into one field
       trade.buyValue,
       '0',
+      applyDefaultFees,
     )
     const sellTdsResult = resolveTds(
       trade.tds,
       trade.sellValue,
       exchangeSettings.defaultTdsPercent,
+      applyDefaultFees,
     )
 
     // Since FIFO engine's `tds` field is combined, we use it as-is for resolved

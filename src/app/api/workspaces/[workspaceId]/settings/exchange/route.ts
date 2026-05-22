@@ -66,6 +66,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       gstPercent,
       cryptoTaxPercent,
       cessPercent,
+      feesIncludeGst,
+      applyDefaultFees,
     } = body
 
     // ── Ensure settings exist first ──
@@ -80,7 +82,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
 
     // ── Build update data with Decimal.js string conversion ──
-    const updateData: Record<string, string> = {}
+    const updateData: Record<string, string | boolean> = {}
 
     if (defaultBuyFeePercent !== undefined) {
       updateData.defaultBuyFeePercent = toD(defaultBuyFeePercent).toString()
@@ -99,6 +101,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
     if (cessPercent !== undefined) {
       updateData.cessPercent = toD(cessPercent).toString()
+    }
+    if (feesIncludeGst !== undefined) {
+      updateData.feesIncludeGst = Boolean(feesIncludeGst)
+    }
+    if (applyDefaultFees !== undefined) {
+      updateData.applyDefaultFees = Boolean(applyDefaultFees)
     }
 
     // ── Update only if there are fields to update ──

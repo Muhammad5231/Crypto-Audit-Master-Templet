@@ -162,9 +162,16 @@ interface SellRecord {
   sourceCsvId: string
 }
 
+// ── FIFO Engine Options ────────────────────────────────────
+
+export interface FifoEngineOptions {
+  /** If true, CSV fee values already include GST — don't add GST on top */
+  feesIncludeGst?: boolean
+}
+
 // ── Main FIFO Processing Function ──────────────────────────
 
-export function runFifoEngine(trades: TradeInput[]): FifoResult {
+export function runFifoEngine(trades: TradeInput[], options?: FifoEngineOptions): FifoResult {
   const realizedTrades: RealizedTrade[] = []
   const openHoldings: OpenHolding[] = []
   const unmatchedSellWarnings: UnmatchedSellWarning[] = []
@@ -310,7 +317,11 @@ export function runFifoEngine(trades: TradeInput[]): FifoResult {
         const totalFees = allocatedBuyFee.plus(allocatedSellFee)
 
         // ── Tax calculations per realized match ──
-        const gstOnFees = totalFees.times(GST_RATE)
+        // If feesIncludeGst is true, fees already include GST — don't add GST on top.
+        // Exchanges like Delta India include 18% GST in their "Trading Fees" column.
+        const gstOnFees = (options?.feesIncludeGst)
+          ? new Decimal(0)
+          : totalFees.times(GST_RATE)
 
         let baseCryptoTax: Decimal
         let cess: Decimal
