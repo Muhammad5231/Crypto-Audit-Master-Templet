@@ -9,6 +9,13 @@ bun install
 echo "[DEV] Setting up database..."
 bun run db:push
 
+echo "[DEV] Building Next.js production bundle..."
+npx next build
+
+echo "[DEV] Copying static files to standalone directory..."
+cp -r .next/static .next/standalone/.next/
+cp -r public .next/standalone/
+
 echo "[DEV] Starting production server with auto-restart..."
 while true; do
   echo "[$(date)] Starting Next.js production server..." >> /home/z/my-project/dev-server.log

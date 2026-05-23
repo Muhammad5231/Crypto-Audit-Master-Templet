@@ -38,3 +38,25 @@ Stage Summary:
 - Server stability FIXED: double-fork daemonization keeps server alive
 - Production server running on port 3000, Caddy proxy on port 81
 - .zscripts/dev.sh created for future sandbox restarts with auto-restart loop
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix client-side application error (blank page / stuck loading)
+
+Work Log:
+- Investigated "Application error: a client-side exception has occurred" 
+- Discovered the root cause: Next.js standalone production server was missing static files
+- The `next build` command creates .next/standalone/ but doesn't include static assets
+- The build script has `cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/` but files were missing
+- After rebuild and proper copy of static files, JS chunks served correctly (200 instead of 404)
+- Tested in browser: Login page renders, registration works, dashboard shows correctly
+- Created workspace via API and verified dashboard displays with "No Report Available" state
+- Updated .zscripts/dev.sh to include build step and static file copy for future restarts
+- Server running stably via double-fork daemonization technique
+
+Stage Summary:
+- Client-side error FIXED: Static files were missing from standalone build
+- Rebuilt project and properly copied static files to .next/standalone/
+- App now fully functional: Login → Dashboard → All pages work
+- Server stable on port 3000 + Caddy proxy on port 81
+- .zscripts/dev.sh updated with build + copy steps for sandbox restarts
