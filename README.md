@@ -8,7 +8,7 @@ Next.js + Prisma + SQLite based crypto audit app for uploading exchange CSV file
 - npm 10+ recommended
 - Bun is optional
 
-## Local Setup
+## Local Setup 
 
 ### 1. Install dependencies
 
