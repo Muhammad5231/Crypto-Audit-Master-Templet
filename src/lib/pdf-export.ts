@@ -1,8 +1,9 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // CRYPTO AUDIT MASTER — PDF Export Service (Server-Side PDFKit)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Generates professional PDF audit reports using PDFKit with
-// embedded chart images from chartjs-node-canvas.
+// Generates professional PDF audit reports using PDFKit.
+// Visual chart images are optional so local setup does not depend
+// on native canvas builds on Windows.
 //
 // Sections:
 //   1.  Cover Page
@@ -33,26 +34,16 @@ import type { OpenHolding, FifoWarning } from '@/lib/fifo-engine'
 
 // ── Lazy-load chartjs (server-only) ────────────────────────
 
-let _chartCanvas: InstanceType<typeof import('chartjs-node-canvas').ChartJSNodeCanvas> | null = null
+type ChartCanvasLike = {
+  renderToBuffer(config: unknown): Promise<Buffer>
+}
 
-async function getChartCanvas(): Promise<InstanceType<typeof import('chartjs-node-canvas').ChartJSNodeCanvas>> {
-  if (!_chartCanvas) {
-    const { ChartJSNodeCanvas } = await import('chartjs-node-canvas')
-    const { Chart, registerables } = await import('chart.js')
-    Chart.register(...registerables)
-    _chartCanvas = new ChartJSNodeCanvas({
-      width: 700,
-      height: 380,
-      backgroundColour: 'white',
-      chartCallback: (ChartJS) => {
-        // Register default fonts
-        ChartJS.defaults.font.family = 'Helvetica'
-        ChartJS.defaults.font.size = 12
-        ChartJS.defaults.color = '#374151'
-      },
-    })
-  }
-  return _chartCanvas
+const CHARTS_DISABLED_REASON =
+  'Visual chart rendering is disabled in this setup to avoid native canvas build requirements on Windows. ' +
+  'The rest of the PDF report is still generated normally.'
+
+async function getChartCanvas(): Promise<ChartCanvasLike | null> {
+  return null
 }
 
 // ── Type Definitions (backward-compatible) ─────────────────
@@ -448,6 +439,7 @@ async function generateProfitOverTimeChart(trades: TaxedRealizedTrade[]): Promis
   const netData = sorted.map(([, d]) => d.netProfit)
 
   const canvas = await getChartCanvas()
+  if (!canvas) return Buffer.alloc(0)
   return canvas.renderToBuffer({
     type: 'line',
     data: {
@@ -497,6 +489,7 @@ async function generateNetProfitByPairChart(trades: TaxedRealizedTrade[]): Promi
   const bgColors = data.map(v => v >= 0 ? 'rgba(20,184,166,0.7)' : 'rgba(239,68,68,0.7)')
 
   const canvas = await getChartCanvas()
+  if (!canvas) return Buffer.alloc(0)
   return canvas.renderToBuffer({
     type: 'bar',
     data: {
@@ -534,6 +527,7 @@ async function generateDeductionsPieChart(ts: TaxSummary): Promise<Buffer> {
   const bgColors = ['#14B8A6', '#6366F1', '#F59E0B', '#EF4444', '#8B5CF6']
 
   const canvas = await getChartCanvas()
+  if (!canvas) return Buffer.alloc(0)
   return canvas.renderToBuffer({
     type: 'pie',
     data: {
@@ -567,6 +561,7 @@ async function generateHoldingsAllocationChart(openHoldings: OpenHolding[]): Pro
   const bgColors = labels.map((_, i) => palette[i % palette.length])
 
   const canvas = await getChartCanvas()
+  if (!canvas) return Buffer.alloc(0)
   return canvas.renderToBuffer({
     type: 'pie',
     data: {
@@ -588,6 +583,7 @@ async function generateHoldingsAllocationChart(openHoldings: OpenHolding[]): Pro
 
 async function generateWinLossChart(ts: TaxSummary): Promise<Buffer> {
   const canvas = await getChartCanvas()
+  if (!canvas) return Buffer.alloc(0)
   return canvas.renderToBuffer({
     type: 'doughnut',
     data: {
@@ -985,6 +981,18 @@ async function buildPerformanceCharts(
   } catch (err) {
     // If chart generation fails, log and continue
     console.error('[PDF CHART ERROR]', err)
+  }
+
+  if (charts.length === 0) {
+    y = ensureSpace(doc, y, 70)
+    doc
+      .font('Helvetica')
+      .fontSize(9)
+      .fillColor(GRAY_500)
+      .text(CHARTS_DISABLED_REASON, MARGIN_LEFT + 10, y, {
+        width: CONTENT_WIDTH - 20,
+      })
+    return y + 40
   }
 
   // Embed each chart image
