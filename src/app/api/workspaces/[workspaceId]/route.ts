@@ -7,12 +7,21 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { NextRequest } from 'next/server'
+import { Prisma } from '@/generated/prisma'
 import { db } from '@/lib/db'
 import { authenticateRequest } from '@/lib/auth-middleware'
 import { verifyWorkspaceOwnership } from '@/lib/workspace-auth'
 import { successResponse, errorResponse } from '@/lib/api-response'
 
 type RouteContext = { params: Promise<{ workspaceId: string }> }
+
+async function getRowsPerPagePreference(workspaceId: string): Promise<number> {
+  const rows = await db.$queryRaw<Array<{ realizedTradesRowsPerPage: number }>>(
+    Prisma.sql`SELECT realizedTradesRowsPerPage FROM Workspace WHERE id = ${workspaceId} LIMIT 1`
+  )
+
+  return Number(rows[0]?.realizedTradesRowsPerPage) || 25
+}
 
 // ── GET /api/workspaces/:workspaceId — Get one workspace with stats ──
 export async function GET(request: NextRequest, context: RouteContext) {
@@ -32,6 +41,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     return successResponse({
       ...workspace,
+      realizedTradesRowsPerPage: await getRowsPerPagePreference(workspaceId),
       stats: { tradeCount, csvFileCount, reportCount, exportCount, noteCount },
     })
   } catch (err) {
@@ -54,7 +64,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     await verifyWorkspaceOwnership(workspaceId, userId)
 
     const body = await request.json()
-    const { name, description, color, icon, financialYear, isArchived } = body
+    const { name, description, color, icon, financialYear, realizedTradesRowsPerPage, isArchived } = body
 
     // ── Build update data (only include provided fields) ──
     const updateData: Record<string, unknown> = {
@@ -73,12 +83,46 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return errorResponse('Workspace name cannot be empty', 422)
     }
 
-    const updatedWorkspace = await db.workspace.update({
-      where: { id: workspaceId },
-      data: updateData,
-    })
+    if (realizedTradesRowsPerPage !== undefined) {
+      const allowedPageSizes = new Set([10, 25, 50, 100])
+      const parsedPageSize = Number(realizedTradesRowsPerPage)
+      if (!Number.isInteger(parsedPageSize) || !allowedPageSizes.has(parsedPageSize)) {
+        return errorResponse('Rows per page must be one of: 10, 25, 50, 100', 422)
+      }
+    }
 
-    return successResponse(updatedWorkspace, 'Workspace updated successfully')
+    const hasPrismaFieldUpdates = Object.keys(updateData).some((key) => key !== 'lastOpenedAt')
+
+    const updatedWorkspace = hasPrismaFieldUpdates
+      ? await db.workspace.update({
+          where: { id: workspaceId },
+          data: updateData,
+        })
+      : await db.workspace.findUniqueOrThrow({
+          where: { id: workspaceId },
+        })
+
+    let resolvedRowsPerPage = await getRowsPerPagePreference(workspaceId)
+
+    if (realizedTradesRowsPerPage !== undefined) {
+      resolvedRowsPerPage = Number(realizedTradesRowsPerPage)
+      await db.$executeRaw(
+        Prisma.sql`
+          UPDATE Workspace
+          SET realizedTradesRowsPerPage = ${resolvedRowsPerPage},
+              lastOpenedAt = ${new Date()}
+          WHERE id = ${workspaceId}
+        `
+      )
+    }
+
+    return successResponse(
+      {
+        ...updatedWorkspace,
+        realizedTradesRowsPerPage: resolvedRowsPerPage,
+      },
+      'Workspace updated successfully'
+    )
   } catch (err) {
     if (err instanceof Error && (err.message.includes('Authorization') || err.message.includes('token'))) {
       return errorResponse(err.message, 401)

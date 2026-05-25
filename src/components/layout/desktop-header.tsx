@@ -604,7 +604,7 @@ export function DesktopHeader() {
   const pageTitle = pageTitles[currentPage] || 'Dashboard'
 
   return (
-    <header className="sticky top-0 z-20 border-b border-border/60 bg-card/70 backdrop-blur-xl supports-[backdrop-filter]:bg-card/60">
+    <header className="z-20 border-b border-border/60 bg-card/70 backdrop-blur-xl supports-[backdrop-filter]:bg-card/60">
       <div className="flex items-center h-12 md:h-14 px-2 md:px-4 gap-2 md:gap-3">
         {/* Mobile: Menu Button + Workspace Chip + Page Title */}
         <Button

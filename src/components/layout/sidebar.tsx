@@ -131,7 +131,9 @@ export function Sidebar() {
           )}
         </div>
 
-        <Separator className={cn('transition-all duration-300', sidebarCollapsed ? 'mx-2' : 'mx-4')} />
+        <div className={cn('transition-all duration-300', sidebarCollapsed ? 'px-2' : 'px-4')}>
+          <Separator />
+        </div>
 
         {/* Navigation */}
         <ScrollArea className="flex-1 py-3">

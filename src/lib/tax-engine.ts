@@ -137,7 +137,7 @@ function resolveTds(
   csvTds: string,
   tradeValue: string,
   defaultTdsPercent: string,
-  applyDefault: boolean = false,
+  applyDefault: boolean = true,
 ): { tds: Decimal; source: 'CSV' | 'DEFAULT' } {
   const tds = toD(csvTds)
 
@@ -145,7 +145,7 @@ function resolveTds(
     return { tds, source: 'CSV' }
   }
 
-  // If CSV TDS is 0, check if we should apply defaults.
+  // If CSV TDS is 0, fall back to the configured default percentage.
   if (!applyDefault) {
     return { tds: new Decimal(0), source: 'CSV' }
   }
@@ -215,29 +215,22 @@ export function runTaxEngine(
       : resolvedTotalFees.times(gstPercent)
 
     // ── TDS Resolution ──
-    // Similar to fees: when applyDefaultFees is false, CSV TDS = 0 means "no TDS deducted".
-    // When applyDefaultFees is true, we estimate TDS using the default percentage.
-    const buyTdsResult = resolveTds(
-      trade.tds, // The FIFO engine already combined buy+sell TDS into one field
-      trade.buyValue,
-      '0',
-      applyDefaultFees,
-    )
+    // TDS is a sell-side deduction. If the matched segment has no CSV TDS,
+    // estimate it using the configured default percentage for the sell value.
     const sellTdsResult = resolveTds(
       trade.tds,
       trade.sellValue,
       exchangeSettings.defaultTdsPercent,
-      applyDefaultFees,
+      true,
     )
 
-    // Since FIFO engine's `tds` field is combined, we use it as-is for resolved
-    // but still track source based on whether CSV had values
+    // The FIFO engine stores TDS as one combined value per matched segment.
     const totalTdsFromFifo = toD(trade.tds)
-    const resolvedBuyTds = totalTdsFromFifo.gt(0) ? totalTdsFromFifo : buyTdsResult.tds
-    const resolvedSellTds = totalTdsFromFifo.gt(0) ? new Decimal(0) : sellTdsResult.tds
-    const resolvedTotalTds = totalTdsFromFifo.gt(0) ? totalTdsFromFifo : resolvedBuyTds.plus(resolvedSellTds)
+    const resolvedBuyTds = new Decimal(0)
+    const resolvedSellTds = totalTdsFromFifo.gt(0) ? totalTdsFromFifo : sellTdsResult.tds
+    const resolvedTotalTds = totalTdsFromFifo.gt(0) ? totalTdsFromFifo : resolvedSellTds
 
-    const buyTdsSource: 'CSV' | 'DEFAULT' = totalTdsFromFifo.gt(0) ? 'CSV' : buyTdsResult.source
+    const buyTdsSource: 'CSV' | 'DEFAULT' = totalTdsFromFifo.gt(0) ? 'CSV' : 'DEFAULT'
     const sellTdsSource: 'CSV' | 'DEFAULT' = totalTdsFromFifo.gt(0) ? 'CSV' : sellTdsResult.source
 
     // ── Direct Tax (only when grossProfit > 0) ──

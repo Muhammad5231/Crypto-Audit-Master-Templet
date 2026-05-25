@@ -11,6 +11,7 @@ export interface Workspace {
   color: string | null
   icon: string | null
   financialYear: string | null
+  realizedTradesRowsPerPage: number
   isArchived: boolean
   lastOpenedAt: string | null
   createdAt: string
@@ -38,7 +39,7 @@ interface WorkspaceState {
   fetchWorkspaces: () => Promise<void>
   selectWorkspace: (workspaceId: string) => void
   createWorkspace: (data: { name: string; description?: string; color?: string; icon?: string; financialYear?: string }) => Promise<Workspace>
-  updateWorkspace: (workspaceId: string, data: Partial<Pick<Workspace, 'name' | 'description' | 'color' | 'icon' | 'financialYear'>>) => Promise<Workspace>
+  updateWorkspace: (workspaceId: string, data: Partial<Pick<Workspace, 'name' | 'description' | 'color' | 'icon' | 'financialYear' | 'realizedTradesRowsPerPage'>>) => Promise<Workspace>
   deleteWorkspace: (workspaceId: string) => Promise<void>
   archiveWorkspace: (workspaceId: string, isArchived: boolean) => Promise<void>
   duplicateWorkspace: (workspaceId: string) => Promise<Workspace>

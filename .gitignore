@@ -49,6 +49,7 @@ dev.out.log
 test
 prompt
 .npm-cache/
+src/generated/prisma/
 
 server.log
 # Skills directory

@@ -17,6 +17,9 @@ import { useWorkspaceStore } from '@/stores/workspace-store'
 import { useAppStore } from '@/stores/app-store'
 import { apiGet } from '@/lib/api-client'
 import { toD, formatINR, formatQty, type D } from '@/lib/decimal'
+import { TAX_DEFAULTS } from '@/lib/tax-defaults'
+import { runTaxEngine } from '@/lib/tax-engine'
+import type { RealizedTrade as FifoRealizedTrade } from '@/lib/fifo-engine'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -142,6 +145,20 @@ type SortOption = 'newest' | 'oldest' | 'highest-profit' | 'highest-loss' | 'hig
 type ProfitFilter = 'all' | 'profit' | 'loss' | 'break-even'
 type PageSize = 10 | 25 | 50 | 100
 
+interface ExchangeSettingsSnapshot {
+  defaultBuyFeePercent: string
+  defaultSellFeePercent: string
+  defaultTdsPercent: string
+  gstPercent: string
+  cryptoTaxPercent: string
+  cessPercent: string
+  feesIncludeGst: boolean
+  applyDefaultFees: boolean
+}
+
+const PAGE_SIZE_OPTIONS: readonly PageSize[] = [10, 25, 50, 100]
+const DEFAULT_PAGE_SIZE: PageSize = 25
+
 // ── Helpers ────────────────────────────────────────────────
 
 function fmtDate(d: string): string {
@@ -168,10 +185,14 @@ function rv(resolved: string | undefined, fallback: string | number, zeroDefault
   return v.toString()
 }
 
+function normalizePageSize(value: number | null | undefined): PageSize {
+  return PAGE_SIZE_OPTIONS.includes(value as PageSize) ? (value as PageSize) : DEFAULT_PAGE_SIZE
+}
+
 // ── Main Component ─────────────────────────────────────────
 
 export default function RealizedTradesPage() {
-  const { currentWorkspace } = useWorkspaceStore()
+  const { currentWorkspace, updateWorkspace } = useWorkspaceStore()
   const { setCurrentPage } = useAppStore()
   const isMobile = useIsMobile()
   const { toast } = useToast()
@@ -190,7 +211,7 @@ export default function RealizedTradesPage() {
 
   // Pagination
   const [paginationPage, setPaginationPage] = useState(1)
-  const [pageSize, setPageSize] = useState<PageSize>(25)
+  const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE)
 
   // Mobile
   const [mobileIndex, setMobileIndex] = useState(0)
@@ -202,10 +223,35 @@ export default function RealizedTradesPage() {
     setIsLoading(true)
     setError(null)
     try {
-      const data = await apiGet<ReportData>(
-        `/api/workspaces/${currentWorkspace.id}/reports/latest`
+      const [data, rawSettings] = await Promise.all([
+        apiGet<ReportData>(`/api/workspaces/${currentWorkspace.id}/reports/latest`),
+        apiGet<Partial<ExchangeSettingsSnapshot>>(`/api/workspaces/${currentWorkspace.id}/settings/exchange`).catch(() => null),
+      ])
+
+      const exchangeSettings: ExchangeSettingsSnapshot = {
+        defaultBuyFeePercent: rawSettings?.defaultBuyFeePercent || TAX_DEFAULTS.DEFAULT_BUY_FEE_PERCENT,
+        defaultSellFeePercent: rawSettings?.defaultSellFeePercent || TAX_DEFAULTS.DEFAULT_SELL_FEE_PERCENT,
+        defaultTdsPercent: rawSettings?.defaultTdsPercent || TAX_DEFAULTS.TDS_PERCENT,
+        gstPercent: rawSettings?.gstPercent || TAX_DEFAULTS.GST_PERCENT,
+        cryptoTaxPercent: rawSettings?.cryptoTaxPercent || TAX_DEFAULTS.CRYPTO_TAX_PERCENT,
+        cessPercent: rawSettings?.cessPercent || TAX_DEFAULTS.CESS_PERCENT,
+        feesIncludeGst: rawSettings?.feesIncludeGst ?? false,
+        applyDefaultFees: rawSettings?.applyDefaultFees ?? false,
+      }
+
+      const taxResult = runTaxEngine(
+        data.realizedTrades as unknown as FifoRealizedTrade[],
+        exchangeSettings,
       )
-      setReport(data)
+
+      setReport({
+        ...data,
+        realizedTrades: taxResult.taxedTrades as unknown as RealizedTrade[],
+        taxSummary: {
+          ...data.taxSummary,
+          ...taxResult.summary,
+        },
+      })
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to load report'
       if (msg.includes('404') || msg.includes('No reports found')) { setReport(null) }
@@ -214,6 +260,10 @@ export default function RealizedTradesPage() {
   }, [currentWorkspace])
 
   useEffect(() => { fetchReport() }, [fetchReport])
+
+  useEffect(() => {
+    setPageSize(normalizePageSize(currentWorkspace?.realizedTradesRowsPerPage))
+  }, [currentWorkspace?.id, currentWorkspace?.realizedTradesRowsPerPage])
 
   // ── Unique pairs ──
   const uniquePairs = useMemo(() => {
@@ -354,6 +404,27 @@ export default function RealizedTradesPage() {
     setDateFrom('')
     setDateTo('')
   }, [])
+
+  const handlePageSizeChange = useCallback(async (value: string) => {
+    const nextPageSize = normalizePageSize(Number(value))
+    setPageSize(nextPageSize)
+
+    if (!currentWorkspace || currentWorkspace.realizedTradesRowsPerPage === nextPageSize) {
+      return
+    }
+
+    try {
+      await updateWorkspace(currentWorkspace.id, {
+        realizedTradesRowsPerPage: nextPageSize,
+      })
+    } catch {
+      toast({
+        title: 'Preference save failed',
+        description: 'Rows per page preference could not be saved. Please try again.',
+        variant: 'destructive',
+      })
+    }
+  }, [currentWorkspace, toast, updateWorkspace])
 
   // ── Export handler ──
   const handleExport = useCallback((type: 'excel' | 'pdf') => {
@@ -709,7 +780,7 @@ export default function RealizedTradesPage() {
               <p className="text-sm text-muted-foreground">
                 Showing {showingFrom}–{showingTo} of {filteredTrades.length} realized trade records
               </p>
-              <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v) as PageSize)}>
+              <Select value={String(pageSize)} onValueChange={handlePageSizeChange}>
                 <SelectTrigger className="w-[80px] h-8 rounded-lg text-xs">
                   <SelectValue />
                 </SelectTrigger>

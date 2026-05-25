@@ -167,7 +167,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const sidebarWidth = sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="h-screen overflow-hidden bg-background">
       {/* Desktop Sidebar */}
       {!isMobile && <Sidebar />}
 
@@ -177,15 +177,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Main content area */}
       <div
         className={cn(
-          'flex-1 flex flex-col transition-[margin-left] duration-300 ease-in-out',
+          'flex h-screen min-h-0 flex-1 flex-col transition-[margin-left] duration-300 ease-in-out',
           !isMobile && 'md:ml-0'
         )}
         style={!isMobile ? { marginLeft: sidebarWidth } : undefined}
       >
-        <div className={cn(isMobile && 'safe-area-top')}>
+        <div className={cn('shrink-0', isMobile && 'safe-area-top')}>
           <DesktopHeader />
         </div>
-        <main className={cn('flex-1 p-4 md:p-6', isMobile && 'pb-24')}>
+        <main className={cn('min-h-0 flex-1 overflow-y-auto p-4 md:p-6', isMobile && 'pb-24')}>
           {children}
         </main>
       </div>

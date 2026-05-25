@@ -6,9 +6,20 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { NextRequest } from 'next/server'
+import { Prisma } from '@/generated/prisma'
 import { db } from '@/lib/db'
 import { authenticateRequest } from '@/lib/auth-middleware'
 import { successResponse, errorResponse } from '@/lib/api-response'
+
+async function getRowsPerPageMap(workspaceIds: string[]) {
+  if (workspaceIds.length === 0) return new Map<string, number>()
+
+  const rows = await db.$queryRaw<Array<{ id: string; realizedTradesRowsPerPage: number }>>(
+    Prisma.sql`SELECT id, realizedTradesRowsPerPage FROM Workspace WHERE id IN (${Prisma.join(workspaceIds)})`
+  )
+
+  return new Map(rows.map((row) => [row.id, Number(row.realizedTradesRowsPerPage) || 25]))
+}
 
 // ── POST /api/workspaces — Create workspace ──
 export async function POST(request: NextRequest) {
@@ -48,7 +59,14 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    return successResponse(workspace, 'Workspace created successfully', 201)
+    return successResponse(
+      {
+        ...workspace,
+        realizedTradesRowsPerPage: 25,
+      },
+      'Workspace created successfully',
+      201
+    )
   } catch (err) {
     if (err instanceof Error && (err.message.includes('Authorization') || err.message.includes('token'))) {
       return errorResponse(err.message, 401)
@@ -69,6 +87,8 @@ export async function GET(request: NextRequest) {
       orderBy: { lastOpenedAt: 'desc' },
     })
 
+    const rowsPerPageMap = await getRowsPerPageMap(workspaces.map((ws) => ws.id))
+
     // ── Fetch stats for each workspace ──
     const workspacesWithStats = await Promise.all(
       workspaces.map(async (ws) => {
@@ -80,6 +100,7 @@ export async function GET(request: NextRequest) {
 
         return {
           ...ws,
+          realizedTradesRowsPerPage: rowsPerPageMap.get(ws.id) ?? 25,
           stats: {
             tradeCount,
             csvFileCount,
