@@ -1146,7 +1146,7 @@ function buildTaxSummarySheet(
     ['G', 'Base Crypto Tax @30% (on Gross Profit if > 0)', baseCryptoTax.toNumber()],
     ['H = G × 4%', 'Cess', toNum(taxSummary.totalCess)],
     ['I = G + H', 'Total Direct Tax', toNum(taxSummary.totalDirectTax)],
-    ['J = C − D − E − F', 'Net Profit Before Tax', toNum(taxSummary.totalNetProfit).plus(toNum(taxSummary.totalDirectTax)).minus(toNum(taxSummary.totalTds))],
+    ['J = C − D − E − F', 'Net Profit Before Tax', toD(taxSummary.totalNetProfit).plus(toD(taxSummary.totalDirectTax)).minus(toD(taxSummary.totalTds)).toNumber()],
     ['K = J − I + F', 'Final Net Profit', toNum(taxSummary.totalNetProfit)],
   ]
 
@@ -1863,7 +1863,7 @@ export async function generateFullExcelWorkbook(
   settings: ExchangeSettingsForExport,
   notes: NoteForExport[],
 ): Promise<Buffer> {
-  const wb = new Workbook()
+  const wb = new ExcelJS.Workbook()
   wb.creator = 'Crypto Audit Master'
   wb.lastModifiedBy = 'Crypto Audit Master'
   wb.created = new Date()
@@ -1949,7 +1949,7 @@ export async function generateRealizedTradesExcel(
   realizedTrades: TaxedRealizedTrade[],
   workspace: WorkspaceForExport,
 ): Promise<Buffer> {
-  const wb = new Workbook()
+  const wb = new ExcelJS.Workbook()
   wb.creator = 'Crypto Audit Master'
   wb.created = new Date()
 
@@ -1984,7 +1984,7 @@ export async function generateOpenHoldingsExcel(
   openHoldings: OpenHolding[],
   workspace: WorkspaceForExport,
 ): Promise<Buffer> {
-  const wb = new Workbook()
+  const wb = new ExcelJS.Workbook()
   wb.creator = 'Crypto Audit Master'
   wb.created = new Date()
 
@@ -2019,7 +2019,7 @@ export async function generateTaxSummaryExcel(
   taxSummary: TaxSummary,
   workspace: WorkspaceForExport,
 ): Promise<Buffer> {
-  const wb = new Workbook()
+  const wb = new ExcelJS.Workbook()
   wb.creator = 'Crypto Audit Master'
   wb.created = new Date()
 

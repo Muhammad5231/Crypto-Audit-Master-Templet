@@ -411,34 +411,17 @@ export default function ExportCenterPage() {
     setGeneratingMessage('Building PDF report...')
     setShowPdfModal(false)
     try {
-      const response = await fetch(
+      const wsName = currentWorkspace.name.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 30)
+      await downloadExportFile(
         `/api/workspaces/${currentWorkspace.id}/exports/pdf/data`,
         {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${getToken()}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            mode: pdfMode,
-            includeDetailedTrades: pdfIncludeDetailedTrades,
-            includeDetailedHoldings: pdfIncludeDetailedHoldings,
-            includeNotes: pdfIncludeNotes,
-          }),
-        }
+          mode: pdfMode,
+          includeDetailedTrades: pdfIncludeDetailedTrades,
+          includeDetailedHoldings: pdfIncludeDetailedHoldings,
+          includeNotes: pdfIncludeNotes,
+        },
+        `Crypto_Audit_Report_${wsName}_${new Date().toISOString().slice(0, 10)}.pdf`
       )
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to generate PDF' }))
-        throw new Error(errorData.error || 'Failed to generate PDF report')
-      }
-      const result = await response.json()
-      const pdfData = result.data || result
-      const printWindow = window.open('', '_blank')
-      if (printWindow) {
-        printWindow.document.write(generatePdfHtml(pdfData, currentWorkspace))
-        printWindow.document.close()
-        setTimeout(() => printWindow.print(), 500)
-      }
       toast.success('PDF report generated successfully')
       await fetchExports()
     } catch (err: unknown) {

@@ -27,6 +27,7 @@
 //   - All existing types preserved
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+import fs from 'fs'
 import PDFDocument from 'pdfkit'
 import { toD, formatINR, formatQty } from '@/lib/decimal'
 import type { TaxedRealizedTrade, TaxSummary } from '@/lib/tax-engine'
@@ -130,9 +131,56 @@ const GREEN = '#16A34A'
 const RED = '#DC2626'
 const GRAY_100 = '#F3F4F6'
 const GRAY_400 = '#9CA3AF'
+const GRAY_500 = '#6B7280'
 const GRAY_600 = '#4B5563'
 const GRAY_800 = '#1F2937'
 const WHITE = '#FFFFFF'
+
+const PDF_FONT_PATHS = {
+  regular: [
+    'C:\\Windows\\Fonts\\arial.ttf',
+    '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+    '/System/Library/Fonts/Supplemental/Arial.ttf',
+  ],
+  bold: [
+    'C:\\Windows\\Fonts\\arialbd.ttf',
+    '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+    '/System/Library/Fonts/Supplemental/Arial Bold.ttf',
+  ],
+  italic: [
+    'C:\\Windows\\Fonts\\ariali.ttf',
+    '/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf',
+    '/System/Library/Fonts/Supplemental/Arial Italic.ttf',
+  ],
+  boldItalic: [
+    'C:\\Windows\\Fonts\\arialbi.ttf',
+    '/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf',
+    '/System/Library/Fonts/Supplemental/Arial Bold Italic.ttf',
+  ],
+} as const
+
+function pickFirstExistingPath(candidates: readonly string[]): string | null {
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate
+    }
+  }
+  return null
+}
+
+function registerPdfFonts(doc: PDFKit.PDFDocument): void {
+  const regular = pickFirstExistingPath(PDF_FONT_PATHS.regular)
+  if (!regular) return
+
+  const bold = pickFirstExistingPath(PDF_FONT_PATHS.bold) ?? regular
+  const italic = pickFirstExistingPath(PDF_FONT_PATHS.italic) ?? regular
+  const boldItalic = pickFirstExistingPath(PDF_FONT_PATHS.boldItalic) ?? bold
+
+  doc.registerFont('Helvetica', regular)
+  doc.registerFont('Helvetica-Bold', bold)
+  doc.registerFont('Helvetica-Oblique', italic)
+  doc.registerFont('Helvetica-BoldOblique', boldItalic)
+}
 
 // ── PDF Layout Constants ───────────────────────────────────
 
@@ -1320,9 +1368,11 @@ export async function generatePdfReport(
   return new Promise(async (resolve, reject) => {
     try {
       const chunks: Buffer[] = []
+      const defaultFont = pickFirstExistingPath(PDF_FONT_PATHS.regular) ?? undefined
 
       const doc = new PDFDocument({
         size: 'A4',
+        font: defaultFont,
         margins: { top: MARGIN_TOP, bottom: MARGIN_BOTTOM, left: MARGIN_LEFT, right: MARGIN_RIGHT },
         bufferPages: true,
         info: {
@@ -1333,6 +1383,9 @@ export async function generatePdfReport(
           CreationDate: new Date(),
         },
       })
+
+      // Prefer real OS fonts so bundled server output doesn't depend on pdfkit's AFM lookup path.
+      registerPdfFonts(doc)
 
       doc.on('data', (chunk: Buffer) => chunks.push(chunk))
       doc.on('end', () => resolve(Buffer.concat(chunks)))
